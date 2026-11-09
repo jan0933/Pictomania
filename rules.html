@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>妙筆神猜 (Pictomania) - 遊戲規則說明</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen p-4 sm:p-6 antialiased">
+  <div class="max-w-2xl mx-auto bg-white rounded-2xl shadow-xl border border-slate-200 p-6 sm:p-8 space-y-6">
+    
+    <!-- 頂部導航 -->
+    <div class="flex items-center justify-between border-b pb-4">
+      <div class="flex items-center space-x-2">
+        <i class="fa-solid fa-book-open text-indigo-600 text-2xl"></i>
+        <h1 class="text-2xl font-black text-slate-800 tracking-wide">妙筆神猜 完整規則</h1>
+      </div>
+      <a href="index.html" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-xl text-xs font-bold transition flex items-center space-x-1">
+        <i class="fa-solid fa-arrow-left"></i>
+        <span>返回遊戲</span>
+      </a>
+    </div>
+
+    <!-- 核心概念 -->
+    <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-4 text-xs text-indigo-900 leading-relaxed space-y-1">
+      <div class="font-bold text-sm flex items-center space-x-1">
+        <i class="fa-solid fa-fire text-amber-500"></i>
+        <span>打破傳統！不用輪流，所有人「同時畫畫、同時搶猜」！</span>
+      </div>
+      <p>一局遊戲固定進行 <b>5 個回合</b>。難度循序漸進，越到後面難度越高，考驗畫家的靈魂畫工與觀察力！</p>
+    </div>
+
+    <!-- 步驟詳解 -->
+    <div class="space-y-4">
+      <div class="border-l-4 border-indigo-500 pl-3">
+        <h2 class="font-bold text-slate-800 text-sm">步驟一：秘密取得題目</h2>
+        <p class="text-xs text-slate-600 mt-0.5">每回合系統會展示 7 個同類別候選單字，並秘密指派其中 1 個給你。只有你自己知道自己的題目號碼。</p>
+      </div>
+
+      <div class="border-l-4 border-amber-500 pl-3">
+        <h2 class="font-bold text-slate-800 text-sm">步驟二：一心二用！作畫與搶猜</h2>
+        <p class="text-xs text-slate-600 mt-0.5">
+          在上方大畫布繪製你的題目特徵；同時盯著下方其他玩家的小畫布。點擊對手畫布可以<b>放大查看細節</b>並直接按鈕搶猜他的題目號碼！
+        </p>
+      </div>
+
+      <div class="border-l-4 border-emerald-500 pl-3">
+        <h2 class="font-bold text-slate-800 text-sm">步驟三：搶宣告完成 (速度加分)</h2>
+        <p class="text-xs text-slate-600 mt-0.5">
+          覺得畫夠了立即按下「我畫完了！」。越早點擊的人可搶得越高的速度加分（先搶先得 +3分、+2分...）。但注意：若你亂猜別人題目導致猜錯，速度分會直接取消！
+        </p>
+      </div>
+
+      <div class="border-l-4 border-purple-500 pl-3">
+        <h2 class="font-bold text-slate-800 text-sm">步驟四：回合結算與計分</h2>
+        <div class="text-xs text-slate-600 mt-1 space-y-1 bg-slate-50 p-3 rounded-lg border border-slate-200">
+          <div>🎯 <b>猜對對手題目</b>：每次猜對獲得 <b>+3 分</b>。</div>
+          <div>❌ <b>盲猜猜錯懲罰</b>：每次猜錯倒扣 <b>-1 分</b>。</div>
+          <div>🎨 <b>畫家獎勵分</b>：只要全場有至少 1 人猜對你的畫，即可獲得 <b>+2 分</b>。</div>
+          <div>⚡ <b>速度分加成</b>：最快宣告完成者依序獲得 <b>+3 / +2 / +1 分</b>（全對才計入）。</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5回合難度分配說明 -->
+    <div class="border-t pt-4">
+      <h3 class="font-bold text-slate-700 text-xs mb-2 flex items-center space-x-1.5">
+        <i class="fa-solid fa-stairs text-indigo-500"></i>
+        <span>五回合循序漸進難度分配邏輯：</span>
+      </h3>
+      <div class="text-xs text-slate-500 space-y-1">
+        <p>房主建房時可勾選 1 ~ 4 個難度等級，系統將自動按照「簡單佔多數、逐漸變難」產生 5 回合：</p>
+        <ul class="list-disc pl-5 space-y-0.5 text-slate-600 font-mono text-[11px]">
+          <li>勾選 Lv 1, 2, 3, 4 ➔ [Lv 1, Lv 1, Lv 2, Lv 3, Lv 4]</li>
+          <li>勾選 Lv 2, 3 ➔ [Lv 2, Lv 2, Lv 2, Lv 3, Lv 3]</li>
+          <li>勾選 Lv 1, 3 ➔ [Lv 1, Lv 1, Lv 1, Lv 3, Lv 3]</li>
+          <li>僅勾選 Lv 4 ➔ [Lv 4, Lv 4, Lv 4, Lv 4, Lv 4]</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="text-center pt-2">
+      <a href="index.html" class="inline-block w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 text-sm transition">
+        我明白了，開始遊戲！
+      </a>
+    </div>
+
+  </div>
+</body>
+</html>
