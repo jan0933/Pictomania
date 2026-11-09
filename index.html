@@ -12,16 +12,17 @@
   <!-- QRCode.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-  <!-- Firebase App & Realtime Database SDKs (Compat 版方便單檔直接使用) -->
+  <!-- 引入獨立題庫檔案 -->
+  <script src="words.js"></script>
+
+  <!-- Firebase App & Realtime Database SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
   <style>
-    /* 防止手機畫畫時下拉重整或滾動頁面 */
     .touch-none {
       touch-action: none;
     }
-    /* 簡化滾動條外觀 */
     ::-webkit-scrollbar {
       width: 4px;
       height: 4px;
@@ -60,7 +61,6 @@
           <p class="text-xs text-slate-500">同時繪圖、搶答互猜！支援多支手機同步互動</p>
         </div>
 
-        <!-- 暱稱輸入 -->
         <div>
           <label class="block text-xs font-bold text-slate-600 mb-1">玩家暱稱</label>
           <div class="relative">
@@ -69,13 +69,11 @@
           </div>
         </div>
 
-        <!-- 頁籤切換：建房 / 進房 -->
         <div class="flex border-b border-slate-200 text-sm font-semibold">
           <button id="tab-join" class="flex-1 pb-2 border-b-2 border-indigo-600 text-indigo-600 transition" onclick="switchLobbyTab('join')">加入已有房間</button>
           <button id="tab-create" class="flex-1 pb-2 border-b-2 border-transparent text-slate-400 hover:text-slate-600 transition" onclick="switchLobbyTab('create')">創建新房間</button>
         </div>
 
-        <!-- 加入房間表單 -->
         <div id="panel-join" class="space-y-4">
           <div>
             <label class="block text-xs font-bold text-slate-600 mb-1">房間代碼 (4碼)</label>
@@ -87,7 +85,6 @@
           </button>
         </div>
 
-        <!-- 創建房間表單 -->
         <div id="panel-create" class="space-y-4 hidden">
           <div class="bg-indigo-50 text-indigo-800 text-xs p-3 rounded-xl flex items-start space-x-2">
             <i class="fa-solid fa-circle-info mt-0.5"></i>
@@ -105,18 +102,16 @@
       </div>
     </section>
 
-    <!-- 2. 等待室畫面 (Wait Room) -->
+    <!-- 2. 等待室畫面 -->
     <section id="view-waiting" class="hidden flex-1 flex flex-col justify-center items-center py-4">
       <div class="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200/80 p-5 space-y-4">
         
-        <!-- 房號與 QR Code 展示卡片 -->
         <div class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-center space-y-3">
           <div>
             <span class="text-xs text-indigo-500 font-bold uppercase tracking-wider">房間代碼</span>
             <div id="wait-room-code" class="text-3xl font-black font-mono text-indigo-600 tracking-widest mt-0.5">----</div>
           </div>
 
-          <!-- QR Code 容器 -->
           <div class="flex flex-col items-center justify-center pt-1">
             <div id="qrcode-container" class="bg-white p-2.5 rounded-xl shadow-sm border border-slate-200 inline-block"></div>
             <span class="text-[11px] text-slate-500 mt-2 flex items-center space-x-1">
@@ -131,18 +126,14 @@
           </button>
         </div>
 
-        <!-- 玩家清單 -->
         <div>
           <div class="flex justify-between items-center mb-2 px-1">
             <span class="text-xs font-bold text-slate-600">已加入玩家 (<span id="player-count">1</span>/6)</span>
             <span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">需至少 2 位玩家</span>
           </div>
-          <div id="lobby-player-list" class="space-y-2 max-h-48 overflow-y-auto pr-1">
-            <!-- 動態插入已加入的玩家卡片 -->
-          </div>
+          <div id="lobby-player-list" class="space-y-2 max-h-48 overflow-y-auto pr-1"></div>
         </div>
 
-        <!-- 房主啟動按鈕 -->
         <div id="host-controls" class="pt-2">
           <button id="btn-start-game" onclick="handleStartGame()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 active:scale-95 transition flex items-center justify-center space-x-2">
             <i class="fa-solid fa-play"></i>
@@ -155,10 +146,8 @@
       </div>
     </section>
 
-    <!-- 3. 遊戲進行畫面 (Game Room) -->
+    <!-- 3. 遊戲進行畫面 -->
     <section id="view-game" class="hidden flex-1 flex flex-col space-y-3">
-      
-      <!-- 頂部資訊：我的題目與本輪主題卡片池 -->
       <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3 flex flex-wrap items-center justify-between gap-2">
         <div class="flex items-center space-x-3">
           <div class="bg-amber-100 border border-amber-300 text-amber-900 px-3 py-1.5 rounded-lg text-center">
@@ -171,17 +160,13 @@
           </div>
         </div>
 
-        <!-- 搶先宣告完成按鈕 -->
         <button id="btn-finish-drawing" onclick="handleFinishDrawing()" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-xs shadow-md shadow-emerald-100 flex items-center space-x-1.5 active:scale-95 transition">
           <i class="fa-solid fa-flag-checkered"></i>
           <span>我畫完了！(搶速度分)</span>
         </button>
       </div>
 
-      <!-- 中間區域：主要畫板 (我的) + 對手小畫板清單 -->
       <div class="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3 min-h-[420px]">
-        
-        <!-- 左/上：我的繪圖畫布 (佔 2 欄) -->
         <div class="md:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 p-3 flex flex-col">
           <div class="flex justify-between items-center mb-2">
             <span class="text-xs font-bold text-slate-700 flex items-center space-x-1.5">
@@ -196,13 +181,11 @@
             </div>
           </div>
 
-          <!-- Canvas 容器 (利用 relative 保持比例) -->
           <div class="flex-1 w-full relative bg-slate-50 rounded-lg border-2 border-dashed border-slate-200 overflow-hidden flex items-center justify-center">
             <canvas id="myCanvas" class="absolute inset-0 w-full h-full touch-none cursor-crosshair bg-white"></canvas>
           </div>
         </div>
 
-        <!-- 右/下：其他玩家的小畫布與猜題區 (佔 1 欄) -->
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3 flex flex-col">
           <div class="flex justify-between items-center mb-2">
             <span class="text-xs font-bold text-slate-700 flex items-center space-x-1">
@@ -212,25 +195,20 @@
             <span class="text-[10px] text-slate-400">點擊猜測</span>
           </div>
 
-          <div id="opponents-container" class="flex-1 overflow-y-auto space-y-3 pr-1">
-            <!-- 動態生成每位對手的小畫布與猜題按鈕 -->
-          </div>
+          <div id="opponents-container" class="flex-1 overflow-y-auto space-y-3 pr-1"></div>
         </div>
       </div>
 
-      <!-- 底部題目池參考列表 (1 ~ 7 號詞彙) -->
       <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3">
         <div class="text-[11px] font-bold text-slate-500 mb-1.5 flex items-center space-x-1">
           <i class="fa-solid fa-list-ol text-indigo-500"></i>
-          <span>本輪所有題目卡候選清單 (大家畫的都在這裡面)：</span>
+          <span>本輪所有題目卡候選清單：</span>
         </div>
-        <div id="theme-word-list" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-1.5 text-xs">
-          <!-- 動態載入 1~7 題 -->
-        </div>
+        <div id="theme-word-list" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-1.5 text-xs"></div>
       </div>
     </section>
 
-    <!-- 4. 結算畫面 (Game Over) -->
+    <!-- 4. 結算畫面 -->
     <section id="view-result" class="hidden flex-1 flex flex-col justify-center items-center py-6">
       <div class="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-6 space-y-5 text-center">
         <div class="inline-flex p-4 bg-amber-50 text-amber-500 rounded-full">
@@ -241,39 +219,30 @@
           <p class="text-xs text-slate-500">誰才是觀察力與畫工最強的神猜？</p>
         </div>
 
-        <div id="scoreboard-list" class="space-y-2 text-left">
-          <!-- 動態插入排名結果 -->
-        </div>
+        <div id="scoreboard-list" class="space-y-2 text-left"></div>
 
         <button onclick="backToLobby()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 active:scale-95 transition">
           返回大廳再玩一局
         </button>
       </div>
     </section>
-
   </main>
 
   <!-- 猜題 Modal 彈窗 -->
   <div id="modal-guess" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5 space-y-4 animate-scale-in">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5 space-y-4">
       <div class="text-center">
         <span class="text-xs text-indigo-600 font-bold uppercase">Guess</span>
         <h3 class="text-lg font-bold text-slate-800">你猜 <span id="modal-target-name" class="text-indigo-600">--</span> 畫的是什麼？</h3>
       </div>
-      <div id="modal-options-grid" class="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto pr-1 text-xs">
-        <!-- 動態產生 1~7 號選項按鈕 -->
-      </div>
+      <div id="modal-options-grid" class="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto pr-1 text-xs"></div>
       <button onclick="closeGuessModal()" class="w-full py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-200 transition">
         取消
       </button>
     </div>
   </div>
 
-  <!-- JavaScript 核心程式邏輯 -->
   <script>
-    /* ========================================================
-       1. Firebase 設定與初始化
-       ======================================================== */
     const firebaseConfig = {
       apiKey: "AIzaSyDWiomRZw-XAgzWwHwGY7GhmEzZWnxmP38",
       authDomain: "pictomania-a72e3.firebaseapp.com",
@@ -294,32 +263,17 @@
       }
       db = firebase.database();
     } catch (e) {
-      console.warn("Firebase 初始化異常，可切換單機模式遊玩:", e);
+      console.warn("Firebase 初始化異常:", e);
     }
 
-    /* ========================================================
-       2. 遊戲資料字典 (妙筆神猜詞庫池)
-       ======================================================== */
-    const WORD_POOLS = [
+    // 備援題庫 (若 words.js 載入失敗時使用)
+    const FALLBACK_WORDS = [
       {
         category: "日常生活用品",
         words: ["電風扇", "吹風機", "吸塵器", "檯燈", "微波爐", "熱水壺", "洗衣機"]
-      },
-      {
-        category: "可愛動物園",
-        words: ["長頸鹿", "大象", "袋鼠", "企鵝", "松鼠", "斑馬", "無尾熊"]
-      },
-      {
-        category: "各行各業",
-        words: ["太空人", "消防員", "廚師", "魔術師", "警察", "醫生", "畫家"]
-      },
-      {
-        category: "運動項目",
-        words: ["羽毛球", "射箭", "棒球", "游泳", "滑雪", "桌球", "跆拳道"]
       }
     ];
 
-    /* 全域遊戲狀態 */
     let myPlayerId = 'p_' + Math.random().toString(36).substr(2, 6);
     let myNickname = '';
     let currentRoomCode = null;
@@ -333,35 +287,27 @@
     let localPlayers = {};
     let unsubRoom = null;
 
-    /* 畫布與筆跡發送節流 (Throttling) 控制 */
     let canvas, ctx;
     let isDrawing = false;
     let strokeBuffer = [];
     let lastSendTime = 0;
-    const THROTTLE_MS = 60; // 每 60 毫秒打包推送一次
+    const THROTTLE_MS = 60;
 
-    // 頁面加載完成初始化
     window.addEventListener('DOMContentLoaded', () => {
       initCanvas();
       checkUrlParams();
     });
 
-    // 檢查網址是否有自帶房號 (例如 ?room=K9XP)
     function checkUrlParams() {
       const urlParams = new URLSearchParams(window.location.search);
       const roomParam = urlParams.get('room');
       if (roomParam) {
         switchLobbyTab('join');
         const inputCode = document.getElementById('input-room-code');
-        if (inputCode) {
-          inputCode.value = roomParam.toUpperCase();
-        }
+        if (inputCode) inputCode.value = roomParam.toUpperCase();
       }
     }
 
-    /* ========================================================
-       3. 大廳互動與 QR Code 處理
-       ======================================================== */
     function switchLobbyTab(tab) {
       const tabJoin = document.getElementById('tab-join');
       const tabCreate = document.getElementById('tab-create');
@@ -383,9 +329,7 @@
 
     function generateQrCode(roomCode) {
       const container = document.getElementById('qrcode-container');
-      container.innerHTML = ""; // 清空舊圖
-      
-      // 取得純乾淨網址
+      container.innerHTML = "";
       const cleanUrl = window.location.origin + window.location.pathname;
       const joinUrl = `${cleanUrl}?room=${roomCode}`;
 
@@ -406,10 +350,8 @@
       navigator.clipboard.writeText(joinUrl).then(() => {
         const textSpan = document.getElementById('copy-btn-text');
         textSpan.innerText = "已複製連結！";
-        setTimeout(() => {
-          textSpan.innerText = "複製專屬邀請連結";
-        }, 2000);
-      }).catch(err => {
+        setTimeout(() => { textSpan.innerText = "複製專屬邀請連結"; }, 2000);
+      }).catch(() => {
         alert("邀請連結：" + joinUrl);
       });
     }
@@ -419,7 +361,6 @@
       return val || "玩家" + Math.floor(Math.random() * 900 + 100);
     }
 
-    // 創建房間
     function handleCreateRoom() {
       myNickname = getNickname();
       isHost = true;
@@ -429,7 +370,7 @@
 
       if (db && !isDemoMode) {
         const roomRef = db.ref('rooms/' + currentRoomCode);
-        const initialData = {
+        roomRef.set({
           code: currentRoomCode,
           hostId: myPlayerId,
           status: 'waiting',
@@ -443,14 +384,12 @@
               isFinishedDrawing: false
             }
           }
-        };
-        roomRef.set(initialData).then(() => {
+        }).then(() => {
           listenToRoom(currentRoomCode);
         });
       }
     }
 
-    // 加入房間
     function handleJoinRoom() {
       myNickname = getNickname();
       const code = document.getElementById('input-room-code').value.trim().toUpperCase();
@@ -490,7 +429,6 @@
       document.getElementById('display-room-code').innerText = code;
       document.getElementById('wait-room-code').innerText = code;
 
-      // 生成專屬 QR Code
       generateQrCode(code);
 
       if (isHost) {
@@ -502,7 +440,6 @@
       }
     }
 
-    // 監聽 Firebase 資料庫變化
     function listenToRoom(code) {
       const roomRef = db.ref('rooms/' + code);
       unsubRoom = roomRef.on('value', snapshot => {
@@ -510,21 +447,16 @@
         if (!data) return;
 
         localPlayers = data.players || {};
-
-        // 刷新大廳玩家列表
         renderLobbyPlayers(localPlayers);
 
-        // 狀態轉移：開始遊戲
         if (data.status === 'playing' && document.getElementById('view-game').classList.contains('hidden')) {
           setupGameScreen(data);
         }
 
-        // 監聽其他玩家筆跡更新
         if (data.status === 'playing') {
           syncOpponentCanvases(data.strokes || {});
         }
 
-        // 狀態轉移：遊戲結算
         if (data.status === 'finished' && document.getElementById('view-result').classList.contains('hidden')) {
           showResults(data.players || {});
         }
@@ -554,20 +486,17 @@
       });
     }
 
-    /* ========================================================
-       4. 遊戲核心邏輯 (妙筆神猜)
-       ======================================================== */
     function handleStartGame() {
       const playerKeys = Object.keys(localPlayers);
       if (playerKeys.length < 2 && !isDemoMode) {
-        alert("妙筆神猜需要至少 2 人才能開始喔！可以讓朋友掃碼或開啟另一個無痕分頁加入。");
+        alert("妙筆神猜需要至少 2 人才能開始喔！");
         return;
       }
 
-      // 隨機選出一組分類
-      const pool = WORD_POOLS[Math.floor(Math.random() * WORD_POOLS.length)];
+      // 從 words.js 載入的題庫挑選，如無則用 fallback
+      const pools = (typeof WORD_POOLS !== 'undefined') ? WORD_POOLS : FALLBACK_WORDS;
+      const pool = pools[Math.floor(Math.random() * pools.length)];
       
-      // 為所有玩家指派不同的題目編號 (0 ~ 6)
       const shuffledIndices = [0, 1, 2, 3, 4, 5, 6].sort(() => 0.5 - Math.random());
       const playerAssignments = {};
 
@@ -588,7 +517,6 @@
           guesses: {}
         });
       } else {
-        // 單機模擬
         setupGameScreen({
           currentTheme: pool,
           assignments: { [myPlayerId]: { wordIndex: 2, word: pool.words[2] } },
@@ -604,7 +532,6 @@
       currentTheme = roomData.currentTheme;
       document.getElementById('card-category').innerText = currentTheme.category;
 
-      // 渲染底部題目池 1~7 號
       const listEl = document.getElementById('theme-word-list');
       listEl.innerHTML = '';
       currentTheme.words.forEach((w, i) => {
@@ -614,7 +541,6 @@
         listEl.appendChild(item);
       });
 
-      // 取得我的題目
       const myTask = roomData.assignments[myPlayerId];
       if (myTask) {
         myAssignedWord = myTask.word;
@@ -622,10 +548,7 @@
         document.getElementById('my-task-text').innerText = `#${myTask.wordIndex + 1} ${myTask.word}`;
       }
 
-      // 生成對手畫布容器
       buildOpponentsView(roomData.players || {});
-      
-      // 確保畫布尺寸適配
       resizeCanvas();
     }
 
@@ -634,7 +557,7 @@
       container.innerHTML = '';
 
       Object.keys(players).forEach(pId => {
-        if (pId === myPlayerId) return; // 不渲染自己的觀看卡
+        if (pId === myPlayerId) return;
 
         const p = players[pId];
         const card = document.createElement('div');
@@ -657,9 +580,6 @@
       });
     }
 
-    /* ========================================================
-       5. 繪圖同步核心 (Canvas + 座標正規化 0~1000)
-       ======================================================== */
     function initCanvas() {
       canvas = document.getElementById('myCanvas');
       ctx = canvas.getContext('2d');
@@ -698,7 +618,7 @@
       const stopDraw = () => {
         if (!isDrawing) return;
         isDrawing = false;
-        flushStrokes(); // 下筆結束即刻把剩餘筆跡傳送
+        flushStrokes();
       };
 
       canvas.addEventListener('mousedown', startDraw);
@@ -727,7 +647,6 @@
       }
     }
 
-    // 筆跡封包節流發送
     function recordPoint(normX, normY, isNew) {
       strokeBuffer.push({
         x: Math.round(normX * 1000),
@@ -745,8 +664,7 @@
     function flushStrokes() {
       if (strokeBuffer.length === 0) return;
       if (db && !isDemoMode) {
-        const playerStrokeRef = db.ref(`rooms/${currentRoomCode}/strokes/${myPlayerId}`);
-        playerStrokeRef.push({
+        db.ref(`rooms/${currentRoomCode}/strokes/${myPlayerId}`).push({
           pts: strokeBuffer,
           time: firebase.database.ServerValue.TIMESTAMP
         });
@@ -754,7 +672,6 @@
       strokeBuffer = [];
     }
 
-    // 同步對手畫布筆跡
     function syncOpponentCanvases(allStrokes) {
       Object.keys(allStrokes).forEach(pId => {
         if (pId === myPlayerId) return;
@@ -763,7 +680,6 @@
         if (!oppCanvas) return;
         const oCtx = oppCanvas.getContext('2d');
 
-        // 調整對手 Canvas 解析度
         if (oppCanvas.width !== oppCanvas.clientWidth) {
           oppCanvas.width = oppCanvas.clientWidth;
           oppCanvas.height = oppCanvas.clientHeight;
@@ -795,9 +711,6 @@
       });
     }
 
-    /* ========================================================
-       6. 猜題、宣告完成與結算邏輯
-       ======================================================== */
     function handleFinishDrawing() {
       const btn = document.getElementById('btn-finish-drawing');
       btn.disabled = true;
@@ -837,7 +750,6 @@
     function submitGuess(targetPId, guessedWordIndex) {
       closeGuessModal();
 
-      // 禁用已猜題按鈕避免重複猜
       const guessBtn = document.getElementById(`btn-guess-${targetPId}`);
       if (guessBtn) {
         guessBtn.disabled = true;
@@ -853,7 +765,6 @@
           timestamp: firebase.database.ServerValue.TIMESTAMP
         });
 
-        // 房主檢查是否所有人都完成了猜測
         if (isHost) {
           checkGameCompletion();
         }
@@ -861,10 +772,9 @@
     }
 
     function checkGameCompletion() {
-      // 簡單規則：房主可手動結算或所有人都完成作畫後計分結算
       setTimeout(() => {
         calculateAndFinishGame();
-      }, 30000); // 30秒後自動結算本輪
+      }, 30000);
     }
 
     function calculateAndFinishGame() {
@@ -876,7 +786,6 @@
         const assignments = room.assignments || {};
         const players = room.players || {};
 
-        // 計分規則：猜對 +3 分，猜錯 -1 分；越快完成繪畫額外加分
         Object.keys(guesses).forEach(k => {
           const g = guesses[k];
           const targetRealIndex = assignments[g.to].wordIndex;
@@ -901,7 +810,6 @@
       const listEl = document.getElementById('scoreboard-list');
       listEl.innerHTML = '';
 
-      // 依分數排序
       const sorted = Object.values(players).sort((a, b) => (b.score || 0) - (a.score || 0));
 
       sorted.forEach((p, idx) => {
@@ -922,9 +830,6 @@
       location.reload();
     }
 
-    /* ========================================================
-       7. 單人免連線模擬模式 (Demo Mode)
-       ======================================================== */
     function enableDemoMode() {
       isDemoMode = true;
       myNickname = "我(體驗)";
