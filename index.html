@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>搶答畫猜 (Draw & Race) - 即時連線版</title>
+  <title>搶答畫猜 (Draw & Race) - 即時連線與AI單機版</title>
   
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -54,8 +54,8 @@
           <div class="inline-flex p-3 bg-amber-50 text-amber-500 rounded-full mb-1">
             <i class="fa-solid fa-palette text-2xl"></i>
           </div>
-          <h2 class="text-xl font-bold text-slate-800">加入急速畫猜</h2>
-          <p class="text-xs text-slate-500">1人作畫眾人搶答！答對最高+3分，答錯最重-3分</p>
+          <h2 class="text-xl font-bold text-slate-800">急速畫猜對決</h2>
+          <p class="text-xs text-slate-500">1人作畫眾人搶答！支援真人多人連線與 AI 陪玩測試</p>
         </div>
 
         <div>
@@ -84,12 +84,10 @@
           </button>
         </div>
 
-        <!-- 創建房間面板 (含題數與秒數自訂) -->
+        <!-- 創建房間面板 -->
         <div id="panel-create" class="space-y-3 hidden">
-          
           <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-3 text-xs">
             
-            <!-- 連續題數設定 (1~5 題) -->
             <div>
               <div class="flex justify-between items-center mb-1">
                 <span class="font-bold text-slate-700">每人作畫題數</span>
@@ -99,11 +97,10 @@
               <div class="flex justify-between text-[10px] text-slate-400">
                 <span>1題 (預設)</span>
                 <span>3題</span>
-                <span>5題 (超激烈)</span>
+                <span>5題</span>
               </div>
             </div>
 
-            <!-- 限時秒數設定 (5~10 秒) -->
             <div>
               <div class="flex justify-between items-center mb-1">
                 <span class="font-bold text-slate-700">每題答題限時</span>
@@ -111,7 +108,7 @@
               </div>
               <input type="range" id="input-seconds-per-question" min="5" max="10" value="5" step="1" oninput="document.getElementById('val-seconds').innerText = this.value" class="w-full accent-amber-500 cursor-pointer">
               <div class="flex justify-between text-[10px] text-slate-400">
-                <span>5秒 (超快預設)</span>
+                <span>5秒 (預設)</span>
                 <span>8秒</span>
                 <span>10秒 (最長)</span>
               </div>
@@ -121,16 +118,25 @@
 
           <button onclick="handleCreateRoom()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 active:scale-95 transition flex items-center justify-center space-x-1.5 text-sm">
             <i class="fa-solid fa-plus-circle"></i>
-            <span>建立房間</span>
+            <span>建立連線房間</span>
           </button>
         </div>
 
-        <div class="text-center pt-1 flex justify-between items-center text-xs">
-          <a href="rules.html" target="_blank" class="text-indigo-600 font-semibold hover:underline">
-            <i class="fa-solid fa-book-open mr-1"></i>規則說明
-          </a>
-          <button onclick="enableDemoMode()" class="text-slate-400 underline hover:text-slate-600">單機模擬體驗</button>
+        <!-- 單人 AI 模式推薦按鈕 -->
+        <div class="pt-2 border-t border-slate-100 flex flex-col space-y-2">
+          <button onclick="enableDemoMode()" class="w-full py-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold rounded-xl shadow-md text-xs transition flex items-center justify-center space-x-1.5 active:scale-95">
+            <i class="fa-solid fa-robot"></i>
+            <span>免湊人！啟動「單人 AI 陪玩對決模式」</span>
+          </button>
+          
+          <div class="flex justify-between items-center text-xs px-1 text-slate-400">
+            <a href="rules.html" target="_blank" class="text-indigo-600 font-semibold hover:underline">
+              <i class="fa-solid fa-book-open mr-1"></i>規則說明
+            </a>
+            <span>AI 會作畫也會搶答</span>
+          </div>
         </div>
+
       </div>
     </section>
 
@@ -144,7 +150,7 @@
             <div id="wait-room-code" class="text-3xl font-black font-mono text-indigo-600 tracking-widest mt-0.5">----</div>
           </div>
 
-          <div class="flex flex-col items-center justify-center pt-1">
+          <div id="qrcode-box" class="flex flex-col items-center justify-center pt-1">
             <div id="qrcode-container" class="bg-white p-2 rounded-xl shadow-sm border border-slate-200 inline-block"></div>
             <span class="text-[11px] text-slate-500 mt-2 flex items-center space-x-1">
               <i class="fa-solid fa-camera"></i>
@@ -156,7 +162,7 @@
             設定：每人連畫 <b id="wait-cfg-q">1</b> 題 ｜ 每題限時 <b id="wait-cfg-s">5</b> 秒
           </div>
 
-          <button onclick="copyInviteLink()" class="w-full py-1.5 px-3 bg-white border border-indigo-200 text-indigo-700 rounded-lg text-xs font-semibold hover:bg-indigo-100/50 active:scale-95 transition flex items-center justify-center space-x-1.5">
+          <button id="btn-copy-link" onclick="copyInviteLink()" class="w-full py-1.5 px-3 bg-white border border-indigo-200 text-indigo-700 rounded-lg text-xs font-semibold hover:bg-indigo-100/50 active:scale-95 transition flex items-center justify-center space-x-1.5">
             <i class="fa-solid fa-link"></i>
             <span id="copy-btn-text">複製專屬邀請連結</span>
           </button>
@@ -165,7 +171,7 @@
         <div>
           <div class="flex justify-between items-center mb-2 px-1">
             <span class="text-xs font-bold text-slate-600">已加入玩家 (<span id="player-count">1</span>/6)</span>
-            <span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">需至少 2 位</span>
+            <span id="wait-player-tip" class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">AI 模式隨時可開始</span>
           </div>
           <div id="lobby-player-list" class="space-y-1.5 max-h-36 overflow-y-auto pr-1"></div>
         </div>
@@ -185,21 +191,17 @@
     <!-- 3. 遊戲進行畫面 (Game Room) -->
     <section id="view-game" class="hidden flex-1 flex flex-col space-y-2">
       
-      <!-- 頂部資訊列：身分、倒數計時、搶答名額進度 -->
       <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-2.5 flex items-center justify-between">
-        
-        <!-- 當前角色與題目 -->
         <div class="flex items-center space-x-2">
           <div id="role-badge" class="px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-100 text-indigo-700">
             畫家
           </div>
           <div>
             <div id="game-status-label" class="text-xs font-bold text-slate-800">你正在作畫</div>
-            <div id="game-word-hint" class="text-[10px] text-slate-500">分類：日常用品</div>
+            <div id="game-word-hint" class="text-[10px] text-slate-500">主題：--</div>
           </div>
         </div>
 
-        <!-- 倒數秒數與滿員指示 -->
         <div class="flex items-center space-x-2">
           <div class="text-right">
             <div class="text-[9px] text-slate-400 font-semibold">答對額度 (3人滿)</div>
@@ -216,7 +218,7 @@
         </div>
       </div>
 
-      <!-- 中間大畫布區域 -->
+      <!-- 畫布區域 -->
       <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-2 flex flex-col flex-1 min-h-[260px] relative">
         <div class="flex justify-between items-center mb-1 px-1">
           <span class="text-xs font-bold text-slate-600 flex items-center space-x-1">
@@ -234,7 +236,7 @@
         </div>
       </div>
 
-      <!-- 底部操作區：猜題者顯示 7 個搶答選項，畫家顯示作畫提示 -->
+      <!-- 底部操作區 -->
       <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-2.5">
         
         <!-- 畫家提示 -->
@@ -244,15 +246,13 @@
           <p class="text-[10px] text-slate-400">抓緊時間下筆！有人答對你可得 +1 分，答錯扣 -1 分！</p>
         </div>
 
-        <!-- 猜題者 7 選 1 搶答按鈕群 -->
+        <!-- 猜題者選項按鈕 -->
         <div id="guesser-prompt" class="space-y-1.5">
           <div class="flex justify-between items-center text-[10px] font-bold text-slate-400 px-0.5">
             <span>搶答選項 (每人限猜一次！)：</span>
             <span id="guess-status-tag" class="text-indigo-600">請選出正確答案</span>
           </div>
-          <div id="options-button-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-xs">
-            <!-- 1~7 號選項按鈕 -->
-          </div>
+          <div id="options-button-grid" class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 text-xs"></div>
         </div>
 
       </div>
@@ -267,13 +267,11 @@
           <h2 class="text-xl font-black text-slate-800 mt-0.5">標準答案：<span id="result-answer-word" class="text-emerald-600">--</span></h2>
         </div>
 
-        <!-- 本題搶答明細清單 -->
         <div class="bg-slate-50 rounded-xl border border-slate-200 p-3 space-y-2 text-xs text-left">
           <div class="font-bold text-slate-700 border-b pb-1">本題得分紀錄：</div>
           <div id="question-details-list" class="space-y-1"></div>
         </div>
 
-        <!-- 累計排行榜 -->
         <div class="text-left text-xs">
           <div class="font-bold text-slate-500 mb-1">目前總排行榜：</div>
           <div id="current-scoreboard-list" class="space-y-1 max-h-36 overflow-y-auto pr-1"></div>
@@ -291,7 +289,7 @@
       </div>
     </section>
 
-    <!-- 5. 遊戲全部結束大總結算 (Final Game Over) -->
+    <!-- 5. 全場大總結算 -->
     <section id="view-result" class="hidden flex-1 flex flex-col justify-center items-center py-4">
       <div class="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-6 space-y-4 text-center">
         <div class="inline-flex p-4 bg-amber-50 text-amber-500 rounded-full">
@@ -341,11 +339,39 @@
       { category: "日常生活用品", words: ["電風扇", "吹風機", "吸塵器", "檯燈", "微波爐", "熱水壺", "洗衣機"] }
     ];
 
+    /* ========================================================
+       AI 向量簡筆畫軌跡庫 (給機器人作畫用，正規化座標 0~1000)
+       ======================================================== */
+    const AI_PRESET_DRAWINGS = [
+      // 幾何形狀1：電風扇 (圓形+十字葉片+直桿底座)
+      [
+        { pts: [{x:500,y:200,isNew:true}, {x:570,y:220}, {x:600,y:300}, {x:570,y:380}, {x:500,y:400}, {x:430,y:380}, {x:400,y:300}, {x:430,y:220}, {x:500,y:200}] },
+        { pts: [{x:500,y:220,isNew:true}, {x:500,y:380}] },
+        { pts: [{x:420,y:300,isNew:true}, {x:580,y:300}] },
+        { pts: [{x:500,y:400,isNew:true}, {x:500,y:650}] },
+        { pts: [{x:400,y:650,isNew:true}, {x:600,y:650}] }
+      ],
+      // 幾何形狀2：吹風機/吸塵器 (手柄+噴頭)
+      [
+        { pts: [{x:350,y:300,isNew:true}, {x:650,y:300}, {x:650,y:400}, {x:350,y:400}, {x:350,y:300}] },
+        { pts: [{x:650,y:320,isNew:true}, {x:750,y:310}, {x:750,y:390}, {x:650,y:380}] },
+        { pts: [{x:450,y:400,isNew:true}, {x:430,y:600}, {x:490,y:600}, {x:510,y:400}] }
+      ],
+      // 幾何形狀3：檯燈/雨傘 (傘形罩+支架+光線)
+      [
+        { pts: [{x:350,y:350,isNew:true}, {x:500,y:220}, {x:650,y:350}, {x:350,y:350}] },
+        { pts: [{x:500,y:350,isNew:true}, {x:500,y:650}] },
+        { pts: [{x:420,y:650,isNew:true}, {x:580,y:650}] },
+        { pts: [{x:400,y:400,isNew:true}, {x:360,y:480}] },
+        { pts: [{x:600,y:400,isNew:true}, {x:640,y:480}] }
+      ]
+    ];
+
     /* 全域狀態 */
     let myPlayerId = 'p_' + Math.random().toString(36).substr(2, 6);
     let myNickname = '';
     let currentRoomCode = null;
-    let isHost = false;
+    let isHost = true;
     let isDrawer = false;
     let hasGuessedThisQuestion = false;
 
@@ -354,6 +380,8 @@
     let currentRoomData = null;
 
     let countdownTimer = null;
+    let aiDrawInterval = null;
+    let aiGuessTimeout = null;
     let timeLeft = 5;
 
     /* 畫布控制 */
@@ -434,6 +462,7 @@
     function handleCreateRoom() {
       myNickname = getNickname();
       isHost = true;
+      isDemoMode = false;
       currentRoomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
 
       const questionsPerTurn = parseInt(document.getElementById('input-questions-per-turn').value) || 1;
@@ -444,7 +473,7 @@
 
       enterWaitingRoom(currentRoomCode);
 
-      if (db && !isDemoMode) {
+      if (db) {
         db.ref('rooms/' + currentRoomCode).set({
           code: currentRoomCode,
           hostId: myPlayerId,
@@ -457,12 +486,7 @@
           currentQuestionIndex: 0,
           playerOrder: [myPlayerId],
           players: {
-            [myPlayerId]: {
-              id: myPlayerId,
-              name: myNickname,
-              score: 0,
-              isHost: true
-            }
+            [myPlayerId]: { id: myPlayerId, name: myNickname, score: 0, isHost: true }
           }
         }).then(() => {
           listenToRoom(currentRoomCode);
@@ -478,9 +502,10 @@
         return;
       }
       isHost = false;
+      isDemoMode = false;
       currentRoomCode = code;
 
-      if (db && !isDemoMode) {
+      if (db) {
         const roomRef = db.ref('rooms/' + currentRoomCode);
         roomRef.once('value').then(snap => {
           if (!snap.exists()) {
@@ -493,23 +518,15 @@
           document.getElementById('wait-cfg-q').innerText = cfg.questionsPerTurn;
           document.getElementById('wait-cfg-s').innerText = cfg.secondsPerQuestion;
 
-          // 加入玩家與排序隊列
           const playerOrder = data.playerOrder || [];
           if (!playerOrder.includes(myPlayerId)) playerOrder.push(myPlayerId);
 
           roomRef.update({
             playerOrder: playerOrder,
-            [`players/${myPlayerId}`]: {
-              id: myPlayerId,
-              name: myNickname,
-              score: 0,
-              isHost: false
-            }
+            [`players/${myPlayerId}`]: { id: myPlayerId, name: myNickname, score: 0, isHost: false }
           });
           listenToRoom(currentRoomCode);
         });
-      } else {
-        enterWaitingRoom(currentRoomCode);
       }
     }
 
@@ -519,7 +536,17 @@
       document.getElementById('room-badge').classList.remove('hidden');
       document.getElementById('display-room-code').innerText = code;
       document.getElementById('wait-room-code').innerText = code;
-      generateQrCode(code);
+
+      if (!isDemoMode) {
+        generateQrCode(code);
+        document.getElementById('qrcode-box').classList.remove('hidden');
+        document.getElementById('btn-copy-link').classList.remove('hidden');
+        document.getElementById('wait-player-tip').innerText = "需至少 2 位玩家";
+      } else {
+        document.getElementById('qrcode-box').classList.add('hidden');
+        document.getElementById('btn-copy-link').classList.add('hidden');
+        document.getElementById('wait-player-tip').innerText = "AI 模式單人隨時開玩！";
+      }
 
       if (isHost) {
         document.getElementById('host-controls').classList.remove('hidden');
@@ -531,6 +558,7 @@
     }
 
     function listenToRoom(code) {
+      if (isDemoMode) return;
       const roomRef = db.ref('rooms/' + code);
       unsubRoom = roomRef.on('value', snap => {
         const data = snap.val();
@@ -565,12 +593,12 @@
         item.className = "flex items-center justify-between p-2 bg-slate-50 border border-slate-200/60 rounded-xl text-xs";
         item.innerHTML = `
           <div class="flex items-center space-x-2">
-            <div class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-[11px]">
-              ${p.name.charAt(0)}
+            <div class="w-6 h-6 rounded-full ${p.isAI ? 'bg-purple-100 text-purple-700' : 'bg-indigo-100 text-indigo-700'} font-bold flex items-center justify-center text-[11px]">
+              ${p.isAI ? '<i class="fa-solid fa-robot text-[10px]"></i>' : p.name.charAt(0)}
             </div>
             <span class="font-bold text-slate-700">${p.name} ${id === myPlayerId ? '<span class="text-[10px] text-indigo-500">(我)</span>' : ''}</span>
           </div>
-          ${p.isHost ? '<span class="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">房主</span>' : ''}
+          ${p.isAI ? '<span class="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold">AI</span>' : (p.isHost ? '<span class="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold">房主</span>' : '')}
         `;
         listEl.appendChild(item);
       });
@@ -581,14 +609,15 @@
        ======================================================== */
     function handleStartGame() {
       const pKeys = Object.keys(localPlayers);
-      if (pKeys.length < 2 && !isDemoMode) {
-        alert("此遊戲需要至少 2 人同樂喔！");
+      // 真人線上模式才需檢查2人；單人 AI 模式即使只有1人也直接開始
+      if (!isDemoMode && pKeys.length < 2) {
+        alert("線上多人模式需要至少 2 人！若想單人體驗請返回大廳點擊「單人 AI 陪玩對決模式」。");
         return;
       }
-      // 隨機重洗玩家作畫順序
+
       const order = [...pKeys].sort(() => 0.5 - Math.random());
       
-      if (db && !isDemoMode) {
+      if (!isDemoMode && db) {
         db.ref('rooms/' + currentRoomCode).update({
           playerOrder: order,
           currentTurnIndex: 0,
@@ -597,16 +626,25 @@
           startNewQuestion(0, 0, order);
         });
       } else {
-        startDemoQuestion();
+        // AI 單機模式啟動
+        currentRoomData = {
+          code: "DEMO",
+          status: 'playing',
+          config: { questionsPerTurn: 1, secondsPerQuestion: 6 },
+          currentTurnIndex: 0,
+          currentQuestionIndex: 0,
+          playerOrder: order,
+          players: localPlayers
+        };
+        startLocalAiQuestion(0, 0, order);
       }
     }
 
-    // 啟動一個新題目
     function startNewQuestion(turnIdx, qIdx, order) {
       const activeDrawerId = order[turnIdx];
       const pools = (typeof WORD_POOLS !== 'undefined') ? WORD_POOLS : FALLBACK_WORDS;
       const pool = pools[Math.floor(Math.random() * pools.length)];
-      const targetIndex = Math.floor(Math.random() * 7); // 0 ~ 6
+      const targetIndex = Math.floor(Math.random() * 7);
 
       if (db && !isDemoMode) {
         db.ref('rooms/' + currentRoomCode).update({
@@ -635,7 +673,6 @@
       isDrawer = (myPlayerId === drawerId);
       hasGuessedThisQuestion = false;
 
-      // 頂部進度
       const turnIdx = data.currentTurnIndex || 0;
       const qIdx = data.currentQuestionIndex || 0;
       const cfg = data.config || { questionsPerTurn: 1, secondsPerQuestion: 5 };
@@ -644,11 +681,8 @@
       document.getElementById('header-turn-badge').classList.remove('hidden');
       document.getElementById('header-turn-badge').innerText = `${drawerName} 的回合 (${qIdx+1}/${cfg.questionsPerTurn}題)`;
 
-      // 重置答對槽點
-      const correctCount = data.correctCount || 0;
-      updateCorrectSlots(correctCount);
+      updateCorrectSlots(data.correctCount || 0);
 
-      // 角色與介面切換
       const roleBadge = document.getElementById('role-badge');
       const statusLabel = document.getElementById('game-status-label');
       const wordHint = document.getElementById('game-word-hint');
@@ -677,15 +711,16 @@
         document.getElementById('canvas-owner-text').innerText = `${drawerName} 的即時畫布`;
       }
 
-      // 生成猜題選項按鈕
       renderOptionsGrid(data.theme.words, data.guesses || {});
-
-      // 清空與調整畫布
       clearCanvasLocally();
       resizeCanvas();
 
-      // 啟動倒數計時器
       startClientCountdown(cfg.secondsPerQuestion);
+
+      // AI 單機模式特有：若為 AI 作畫或 AI 猜題，啟動對應腳本
+      if (isDemoMode) {
+        handleAiBehaviorInDemo(data);
+      }
     }
 
     function updateCorrectSlots(count) {
@@ -704,9 +739,7 @@
       grid.innerHTML = '';
 
       const myGuess = guesses[myPlayerId];
-      if (myGuess) {
-        hasGuessedThisQuestion = true;
-      }
+      if (myGuess) hasGuessedThisQuestion = true;
 
       const tag = document.getElementById('guess-status-tag');
       if (hasGuessedThisQuestion) {
@@ -744,14 +777,13 @@
 
       countdownTimer = setInterval(() => {
         timeLeft--;
-        if (timeLeft >= 0) {
-          countEl.innerText = timeLeft;
-        }
+        if (timeLeft >= 0) countEl.innerText = timeLeft;
 
         if (timeLeft <= 0) {
           clearInterval(countdownTimer);
-          // 限時到，房主結算
-          if (isHost) {
+          if (isDemoMode) {
+            finishLocalDemoQuestion();
+          } else if (isHost) {
             finishQuestionAndScore();
           }
         }
@@ -759,7 +791,7 @@
     }
 
     /* ========================================================
-       4. 猜題提交與結束判定
+       4. 猜題提交與結算判定
        ======================================================== */
     function submitPlayerGuess(chosenIndex) {
       if (isDrawer || hasGuessedThisQuestion) return;
@@ -767,10 +799,29 @@
 
       const isCorrect = (chosenIndex === currentRoomData.targetIndex);
 
-      if (db && !isDemoMode) {
-        const roomRef = db.ref('rooms/' + currentRoomCode);
+      if (isDemoMode) {
+        // 單機本地紀錄
+        currentRoomData.guesses[myPlayerId] = {
+          playerId: myPlayerId,
+          playerName: myNickname,
+          guessedIndex: chosenIndex,
+          isCorrect: isCorrect,
+          timestamp: Date.now()
+        };
+        currentRoomData.totalGuessedCount = (currentRoomData.totalGuessedCount || 0) + 1;
+        if (isCorrect) currentRoomData.correctCount = (currentRoomData.correctCount || 0) + 1;
         
-        // 寫入自己的猜題紀錄 (含時間戳與對錯)
+        renderOptionsGrid(currentRoomData.theme.words, currentRoomData.guesses);
+        updateCorrectSlots(currentRoomData.correctCount);
+
+        if (currentRoomData.correctCount >= 3 || currentRoomData.totalGuessedCount >= (currentRoomData.playerOrder.length - 1)) {
+          finishLocalDemoQuestion();
+        }
+        return;
+      }
+
+      if (db) {
+        const roomRef = db.ref('rooms/' + currentRoomCode);
         roomRef.child('guesses/' + myPlayerId).set({
           playerId: myPlayerId,
           playerName: myNickname,
@@ -778,13 +829,10 @@
           isCorrect: isCorrect,
           timestamp: firebase.database.ServerValue.TIMESTAMP
         }).then(() => {
-          // 原子增加已猜人數與答對人數
           roomRef.child('totalGuessedCount').transaction(c => (c || 0) + 1);
           if (isCorrect) {
-            roomRef.child('correctCount').transaction(c => (c || 0) + 1, (err, comm, snap) => {
-              if (comm && isHost) {
-                checkQuestionEndConditions();
-              }
+            roomRef.child('correctCount').transaction(c => (c || 0) + 1, (err, comm) => {
+              if (comm && isHost) checkQuestionEndConditions();
             });
           } else {
             if (isHost) checkQuestionEndConditions();
@@ -793,7 +841,6 @@
       }
     }
 
-    // 房主檢查是否滿足提前結束條件
     function checkQuestionEndConditions() {
       if (!isHost || !currentRoomData || currentRoomData.status !== 'playing') return;
 
@@ -802,9 +849,8 @@
         const data = snap.val();
         const correctCount = data.correctCount || 0;
         const totalGuessedCount = data.totalGuessedCount || 0;
-        const totalGuessers = (data.playerOrder.length - 1); // 扣掉畫家
+        const totalGuessers = (data.playerOrder.length - 1);
 
-        // 條件1：滿3人答對 ｜ 條件2：所有猜題者都已猜過
         if (correctCount >= 3 || totalGuessedCount >= totalGuessers) {
           if (countdownTimer) clearInterval(countdownTimer);
           finishQuestionAndScore();
@@ -812,7 +858,6 @@
       });
     }
 
-    // 結算該題分數
     function finishQuestionAndScore() {
       if (!isHost || !db) return;
 
@@ -824,13 +869,12 @@
         const players = data.players || {};
         const drawerId = data.activeDrawerId;
 
-        // 依作答時間排序猜題者
         const guessList = Object.values(guessesObj).sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
 
         let correctRank = 0;
         let wrongRank = 0;
         let drawerDelta = 0;
-        const questionScores = {}; // 本題每人得分詳情
+        const questionScores = {};
 
         Object.keys(players).forEach(pId => questionScores[pId] = 0);
 
@@ -840,11 +884,9 @@
             if (correctRank === 1) questionScores[g.playerId] = 3;
             else if (correctRank === 2) questionScores[g.playerId] = 2;
             else if (correctRank === 3) questionScores[g.playerId] = 1;
-            else questionScores[g.playerId] = 0; // 第四名以後不計分
+            else questionScores[g.playerId] = 0;
 
-            if (correctRank <= 3) {
-              drawerDelta += 1; // 畫家 +1
-            }
+            if (correctRank <= 3) drawerDelta += 1;
           } else {
             wrongRank++;
             if (wrongRank === 1) questionScores[g.playerId] = -3;
@@ -852,15 +894,12 @@
             else if (wrongRank === 3) questionScores[g.playerId] = -1;
             else questionScores[g.playerId] = 0;
 
-            if (correctRank < 3) {
-              drawerDelta -= 1; // 畫家 -1
-            }
+            if (correctRank < 3) drawerDelta -= 1;
           }
         });
 
         questionScores[drawerId] = drawerDelta;
 
-        // 更新總分
         Object.keys(players).forEach(pId => {
           players[pId].score = (players[pId].score || 0) + questionScores[pId];
         });
@@ -876,19 +915,19 @@
 
     function showQuestionResults(data) {
       if (countdownTimer) clearInterval(countdownTimer);
+      if (aiDrawInterval) clearInterval(aiDrawInterval);
+      if (aiGuessTimeout) clearTimeout(aiGuessTimeout);
+
       document.getElementById('view-game').classList.add('hidden');
       document.getElementById('view-question-result').classList.remove('hidden');
 
-      const targetWord = data.targetWord;
-      document.getElementById('result-answer-word').innerText = targetWord;
+      document.getElementById('result-answer-word').innerText = data.targetWord;
 
-      // 渲染本題明細
       const detailList = document.getElementById('question-details-list');
       detailList.innerHTML = '';
       const qScores = data.lastQuestionScores || {};
       const drawerId = data.activeDrawerId;
 
-      // 畫家得分
       const drawerItem = document.createElement('div');
       drawerItem.className = "flex justify-between items-center text-indigo-700 font-bold bg-indigo-50 p-1.5 rounded-lg";
       drawerItem.innerHTML = `
@@ -897,7 +936,6 @@
       `;
       detailList.appendChild(drawerItem);
 
-      // 各猜題者得分
       (data.lastGuessList || []).forEach(g => {
         const pts = qScores[g.playerId] || 0;
         const item = document.createElement('div');
@@ -909,7 +947,6 @@
         detailList.appendChild(item);
       });
 
-      // 渲染排行榜
       const scoreList = document.getElementById('current-scoreboard-list');
       scoreList.innerHTML = '';
       const sorted = Object.values(data.players || {}).sort((a, b) => (b.score || 0) - (a.score || 0));
@@ -924,7 +961,6 @@
         scoreList.appendChild(item);
       });
 
-      // 判斷房主按鈕文案
       const cfg = data.config || { questionsPerTurn: 1, secondsPerQuestion: 5 };
       const turnIdx = data.currentTurnIndex || 0;
       const qIdx = data.currentQuestionIndex || 0;
@@ -940,7 +976,7 @@
         nextBtn.innerText = `全場結束，查看總冠軍 🏆`;
       }
 
-      if (isHost) {
+      if (isHost || isDemoMode) {
         document.getElementById('host-next-btn-container').classList.remove('hidden');
         document.getElementById('guest-wait-next-msg').classList.add('hidden');
       } else {
@@ -949,26 +985,30 @@
       }
     }
 
-    // 房主點擊下一題或下一輪
     function handleNextQuestionOrTurn() {
-      if (!isHost || !currentRoomData) return;
-
       const cfg = currentRoomData.config || { questionsPerTurn: 1, secondsPerQuestion: 5 };
       let turnIdx = currentRoomData.currentTurnIndex || 0;
       let qIdx = currentRoomData.currentQuestionIndex || 0;
       const order = currentRoomData.playerOrder || [];
 
+      if (isDemoMode) {
+        if (qIdx + 1 < cfg.questionsPerTurn) {
+          startLocalAiQuestion(turnIdx, qIdx + 1, order);
+        } else if (turnIdx + 1 < order.length) {
+          startLocalAiQuestion(turnIdx + 1, 0, order);
+        } else {
+          showFinalGameOver(localPlayers);
+        }
+        return;
+      }
+
+      if (!isHost) return;
       if (qIdx + 1 < cfg.questionsPerTurn) {
-        // 同一位畫家，下一題
         startNewQuestion(turnIdx, qIdx + 1, order);
       } else if (turnIdx + 1 < order.length) {
-        // 換下一位畫家，題數歸零
         startNewQuestion(turnIdx + 1, 0, order);
       } else {
-        // 所有人都畫完了，結束遊戲
-        if (db && !isDemoMode) {
-          db.ref('rooms/' + currentRoomCode).update({ status: 'game_over' });
-        }
+        if (db) db.ref('rooms/' + currentRoomCode).update({ status: 'game_over' });
       }
     }
 
@@ -1062,9 +1102,7 @@
     }
 
     function clearCanvasLocally() {
-      if (ctx && canvas) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-      }
+      if (ctx && canvas) ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 
     function clearActiveCanvas() {
@@ -1130,34 +1168,200 @@
       location.reload();
     }
 
-    /* 單機模擬體驗 */
+    /* ========================================================
+       6. AI 機器人作畫與搶答單機模式 (Single Player + AI Engine)
+       ======================================================== */
     function enableDemoMode() {
       isDemoMode = true;
-      myNickname = "我(畫家體驗)";
-      currentRoomCode = "DEMO";
-      enterWaitingRoom("DEMO");
+      myNickname = getNickname();
+      currentRoomCode = "AI";
+      isHost = true;
+      enterWaitingRoom("AI");
 
       localPlayers = {
-        [myPlayerId]: { id: myPlayerId, name: myNickname, score: 0, isHost: true },
-        'bot_1': { id: 'bot_1', name: '小明(機器人)', score: 0, isHost: false },
-        'bot_2': { id: 'bot_2', name: '小華(機器人)', score: 0, isHost: false }
+        [myPlayerId]: { id: myPlayerId, name: myNickname, score: 0, isHost: true, isAI: false },
+        'bot_1': { id: 'bot_1', name: '小明(AI)', score: 0, isHost: false, isAI: true },
+        'bot_2': { id: 'bot_2', name: '小華(AI)', score: 0, isHost: false, isAI: true }
       };
       renderLobbyPlayers(localPlayers);
     }
 
-    function startDemoQuestion() {
-      const pool = FALLBACK_WORDS[0];
-      setupPlayingQuestion({
+    function startLocalAiQuestion(turnIdx, qIdx, order) {
+      const activeDrawerId = order[turnIdx];
+      const pools = (typeof WORD_POOLS !== 'undefined') ? WORD_POOLS : FALLBACK_WORDS;
+      const pool = pools[Math.floor(Math.random() * pools.length)];
+      const targetIndex = Math.floor(Math.random() * 7);
+
+      currentRoomData = {
+        code: "AI",
         status: 'playing',
-        currentTurnIndex: 0,
-        currentQuestionIndex: 0,
-        activeDrawerId: myPlayerId,
-        config: { questionsPerTurn: 1, secondsPerQuestion: 5 },
+        config: { questionsPerTurn: 1, secondsPerQuestion: 6 },
+        currentTurnIndex: turnIdx,
+        currentQuestionIndex: qIdx,
+        playerOrder: order,
+        activeDrawerId: activeDrawerId,
         theme: pool,
-        targetIndex: 0,
-        targetWord: pool.words[0],
-        correctCount: 0
+        targetIndex: targetIndex,
+        targetWord: pool.words[targetIndex],
+        strokes: {},
+        guesses: {},
+        correctCount: 0,
+        totalGuessedCount: 0,
+        players: localPlayers
+      };
+
+      setupPlayingQuestion(currentRoomData);
+    }
+
+    function handleAiBehaviorInDemo(data) {
+      const activeDrawerId = data.activeDrawerId;
+      const isAiDrawing = localPlayers[activeDrawerId] && localPlayers[activeDrawerId].isAI;
+
+      // 1. 若當前畫家是 AI：啟動向量動態繪圖
+      if (isAiDrawing) {
+        startAiDrawingAnimation();
+      }
+
+      // 2. 其餘 AI 玩家進行智能模擬搶答
+      data.playerOrder.forEach(pId => {
+        if (pId !== activeDrawerId && localPlayers[pId]?.isAI) {
+          scheduleAiGuess(pId, data.targetIndex);
+        }
       });
+    }
+
+    // AI 依據預製路徑在 Canvas 上動態筆跡繪製
+    function startAiDrawingAnimation() {
+      if (aiDrawInterval) clearInterval(aiDrawInterval);
+      clearCanvasLocally();
+
+      const preset = AI_PRESET_DRAWINGS[Math.floor(Math.random() * AI_PRESET_DRAWINGS.length)];
+      let strokeIdx = 0;
+      let pointIdx = 0;
+
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#1e1b4b';
+
+      aiDrawInterval = setInterval(() => {
+        if (strokeIdx >= preset.length) {
+          clearInterval(aiDrawInterval);
+          return;
+        }
+
+        const currentStroke = preset[strokeIdx];
+        const pt = currentStroke.pts[pointIdx];
+
+        const rx = (pt.x / 1000) * (canvas.width / window.devicePixelRatio);
+        const ry = (pt.y / 1000) * (canvas.height / window.devicePixelRatio);
+
+        if (pt.isNew) {
+          ctx.beginPath();
+          ctx.moveTo(rx, ry);
+        } else {
+          ctx.lineTo(rx, ry);
+          ctx.stroke();
+        }
+
+        pointIdx++;
+        if (pointIdx >= currentStroke.pts.length) {
+          strokeIdx++;
+          pointIdx = 0;
+        }
+      }, 120); // 每 120ms 下一筆
+    }
+
+    // AI 機器人模擬隨機搶答（75% 正確率，2~4 秒延遲搶答）
+    function scheduleAiGuess(botId, correctTargetIndex) {
+      const delay = Math.floor(Math.random() * 2500) + 2000; // 2 ~ 4.5 秒內搶答
+
+      setTimeout(() => {
+        if (!currentRoomData || currentRoomData.status !== 'playing') return;
+        if (currentRoomData.guesses[botId]) return;
+
+        // 75% 答對，25% 答錯
+        const willBeCorrect = Math.random() < 0.75;
+        let chosen = correctTargetIndex;
+        if (!willBeCorrect) {
+          // 隨機挑一個錯誤選項
+          const wrongIndices = [0,1,2,3,4,5,6].filter(i => i !== correctTargetIndex);
+          chosen = wrongIndices[Math.floor(Math.random() * wrongIndices.length)];
+        }
+
+        currentRoomData.guesses[botId] = {
+          playerId: botId,
+          playerName: localPlayers[botId].name,
+          guessedIndex: chosen,
+          isCorrect: willBeCorrect,
+          timestamp: Date.now()
+        };
+
+        currentRoomData.totalGuessedCount = (currentRoomData.totalGuessedCount || 0) + 1;
+        if (willBeCorrect) {
+          currentRoomData.correctCount = (currentRoomData.correctCount || 0) + 1;
+        }
+
+        updateCorrectSlots(currentRoomData.correctCount);
+
+        // 檢查是否提前結束
+        if (currentRoomData.correctCount >= 3 || currentRoomData.totalGuessedCount >= (currentRoomData.playerOrder.length - 1)) {
+          finishLocalDemoQuestion();
+        }
+      }, delay);
+    }
+
+    // 單機模式本題計分結算
+    function finishLocalDemoQuestion() {
+      if (countdownTimer) clearInterval(countdownTimer);
+      if (aiDrawInterval) clearInterval(aiDrawInterval);
+
+      const data = currentRoomData;
+      if (data.status !== 'playing') return;
+
+      const guessesObj = data.guesses || {};
+      const players = data.players || {};
+      const drawerId = data.activeDrawerId;
+
+      const guessList = Object.values(guessesObj).sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+      let correctRank = 0;
+      let wrongRank = 0;
+      let drawerDelta = 0;
+      const questionScores = {};
+
+      Object.keys(players).forEach(pId => questionScores[pId] = 0);
+
+      guessList.forEach(g => {
+        if (g.isCorrect) {
+          correctRank++;
+          if (correctRank === 1) questionScores[g.playerId] = 3;
+          else if (correctRank === 2) questionScores[g.playerId] = 2;
+          else if (correctRank === 3) questionScores[g.playerId] = 1;
+          else questionScores[g.playerId] = 0;
+
+          if (correctRank <= 3) drawerDelta += 1;
+        } else {
+          wrongRank++;
+          if (wrongRank === 1) questionScores[g.playerId] = -3;
+          else if (wrongRank === 2) questionScores[g.playerId] = -2;
+          else if (wrongRank === 3) questionScores[g.playerId] = -1;
+          else questionScores[g.playerId] = 0;
+
+          if (correctRank < 3) drawerDelta -= 1;
+        }
+      });
+
+      questionScores[drawerId] = drawerDelta;
+
+      Object.keys(players).forEach(pId => {
+        players[pId].score = (players[pId].score || 0) + questionScores[pId];
+      });
+
+      data.status = 'question_finished';
+      data.lastQuestionScores = questionScores;
+      data.lastGuessList = guessList;
+
+      showQuestionResults(data);
     }
   </script>
 </body>
