@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>妙筆神猜 Pictomania Online</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Firebase SDKs (Modular v10 compat / via script for universal single file) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+
+  <style>
+    /* 遊戲風格字體與觸控優化 */
+    body {
+      touch-action: pan-y;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    /* 繪圖畫布嚴格禁止捲動 */
+    canvas.drawing-board {
+      touch-action: none;
+      cursor: crosshair;
+    }
+    /* 自訂平滑陰影與卡片邊框 */
+    .game-card {
+      box-shadow: 0 8px 0px rgba(0, 0, 0, 0.15);
+      transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .game-card:active {
+      transform: translateY(4px);
+      box-shadow: 0 4px 0px rgba(0, 0, 0, 0.15);
+    }
+    /* 閃爍動畫 */
+    @keyframes pulse-gold {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 15px rgba(234, 179, 8, 0.6); }
+      50% { transform: scale(1.04); box-shadow: 0 0 25px rgba(234, 179, 8, 0.9); }
+    }
+    .animate-gold {
+      animation: pulse-gold 1.5s infinite;
+    }
+  </style>
+</head>
+<body class="bg-amber-50 text-slate-800 min-h-screen flex flex-col justify-between overflow-x-hidden">
+
+  <!-- ================= 頂部導覽列 / 狀態條 ================= -->
+  <header class="bg-indigo-600 text-white px-4 py-2.5 shadow-md flex items-center justify-between sticky top-0 z-40">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 rounded-lg bg-amber-400 flex items-center justify-center text-indigo-900 font-black text-lg shadow">
+        <i class="fa-solid fa-pencil"></i>
+      </div>
+      <div>
+        <h1 class="text-base font-black tracking-wide leading-tight">妙筆神猜 <span class="text-amber-300 text-xs font-normal">Pictomania</span></h1>
+        <p id="top-status-text" class="text-[11px] text-indigo-200">多人即時繪圖派對</p>
+      </div>
+    </div>
+    
+    <div class="flex items-center gap-2">
+      <!-- 房間與使用者徽章 -->
+      <div id="room-badge" class="hidden bg-indigo-700 text-amber-300 font-mono text-xs px-2.5 py-1 rounded-full font-bold border border-indigo-500">
+        房間: <span id="room-code-display">----</span>
+      </div>
+      <!-- 設定按鈕 -->
+      <button onclick="openConfigModal()" class="w-8 h-8 rounded-full bg-indigo-500 hover:bg-indigo-400 flex items-center justify-center text-white transition" title="Firebase / 遊戲設定">
+        <i class="fa-solid fa-gear text-sm"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= 主視窗容器 ================= -->
+  <main class="flex-1 max-w-5xl w-full mx-auto p-3 md:p-4 flex flex-col">
+
+    <!-- 1. 首頁 / 登入建立房間 -->
+    <section id="view-lobby" class="flex-1 flex flex-col justify-center items-center py-6">
+      <div class="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-md shadow-xl border-4 border-amber-300 text-center relative">
+        <div class="absolute -top-7 left-1/2 -translate-x-1/2 bg-amber-400 text-indigo-950 font-black px-6 py-1.5 rounded-full shadow-md text-sm uppercase tracking-wider flex items-center gap-2">
+          <i class="fa-solid fa-gamepad"></i> 派對開局
+        </div>
+
+        <div class="mt-4 mb-6">
+          <h2 class="text-2xl font-black text-slate-800">邊畫邊猜，手忙腳亂！</h2>
+          <p class="text-xs text-slate-500 mt-1">每人一邊畫自己的題目，一邊搶猜別人的畫作！</p>
+        </div>
+
+        <!-- 暱稱輸入 -->
+        <div class="text-left mb-4">
+          <label class="block text-xs font-bold text-slate-600 mb-1">你的暱稱 / 畫家名號</label>
+          <div class="relative">
+            <i class="fa-solid fa-user absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+            <input type="text" id="input-username" maxlength="12" placeholder="例：畢卡索阿明" 
+              class="w-full pl-9 pr-3 py-2.5 border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none font-bold text-slate-800 text-sm">
+          </div>
+        </div>
+
+        <!-- 模式切換標籤 -->
+        <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl mb-4">
+          <button id="btn-tab-create" onclick="switchLobbyTab('create')" class="py-2 rounded-lg font-bold text-xs bg-white text-indigo-600 shadow">建立新房間</button>
+          <button id="btn-tab-join" onclick="switchLobbyTab('join')" class="py-2 rounded-lg font-bold text-xs text-slate-500">加入已有房間</button>
+        </div>
+
+        <!-- 建立房間選項 -->
+        <div id="panel-create" class="space-y-3">
+          <p class="text-xs text-slate-500">你是房主，其他朋友可透過 4 位數代碼或 QR Code 加入。</p>
+          <button onclick="handleCreateRoom()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-base game-card flex items-center justify-center gap-2">
+            <i class="fa-solid fa-plus-circle"></i> 創建房間
+          </button>
+        </div>
+
+        <!-- 加入房間選項 -->
+        <div id="panel-join" class="space-y-3 hidden">
+          <div>
+            <input type="text" id="input-room-code" maxlength="4" placeholder="輸入 4 位英文房間碼 (例: ABCD)" 
+              class="w-full py-2.5 px-3 uppercase text-center tracking-widest font-mono text-lg font-black border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none">
+          </div>
+          <button onclick="handleJoinRoom()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl text-base game-card flex items-center justify-center gap-2">
+            <i class="fa-solid fa-right-to-bracket"></i> 加入對局
+          </button>
+        </div>
+
+        <!-- 模擬測試模式開關按鈕 (免 Firebase 也能試玩) -->
+        <div class="mt-6 pt-4 border-t border-dashed border-slate-200">
+          <button onclick="startDemoMode()" class="text-xs font-bold text-amber-700 hover:text-amber-800 bg-amber-100 px-3 py-1.5 rounded-lg flex items-center justify-center gap-1.5 mx-auto">
+            <i class="fa-solid fa-robot"></i> 啟動單機機器人模擬模式 (免設定即玩)
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. 等待室 (Lobby Waiting Room) -->
+    <section id="view-room" class="flex-1 flex flex-col justify-center items-center py-4 hidden">
+      <div class="bg-white rounded-3xl p-6 w-full max-w-lg shadow-xl border-4 border-indigo-200 text-center">
+        <span class="bg-indigo-100 text-indigo-700 text-xs font-bold px-3 py-1 rounded-full uppercase">房間準備中</span>
+        
+        <div class="my-4">
+          <div class="text-xs text-slate-400 font-bold">請讓同伴手機輸入此代碼</div>
+          <div id="waiting-room-code" class="text-5xl font-mono font-black text-indigo-600 tracking-widest my-2 select-all">----</div>
+          <button onclick="copyRoomLink()" class="text-xs text-indigo-500 font-bold hover:underline inline-flex items-center gap-1">
+            <i class="fa-solid fa-copy"></i> 複製加入連結
+          </button>
+        </div>
+
+        <!-- 玩家列表 -->
+        <div class="text-left mb-6">
+          <div class="flex justify-between items-center mb-2">
+            <span class="text-xs font-bold text-slate-500">目前同伴 (<span id="player-count">0</span>/6)</span>
+            <span class="text-[11px] text-slate-400">最少 2 人即可開局</span>
+          </div>
+          <div id="players-list-grid" class="grid grid-cols-2 gap-2">
+            <!-- 玩家卡片動態插入 -->
+          </div>
+        </div>
+
+        <!-- 遊戲開始按鈕 (僅房主可按) -->
+        <div id="host-controls">
+          <button onclick="handleStartGame()" class="w-full py-3.5 bg-amber-500 hover:bg-amber-600 text-indigo-950 font-black rounded-xl text-base game-card shadow-lg flex items-center justify-center gap-2">
+            <i class="fa-solid fa-play"></i> 開始遊戲！
+          </button>
+          <p class="text-[11px] text-slate-400 mt-2">房主可決定何時發題</p>
+        </div>
+        <div id="client-wait-msg" class="hidden text-sm text-slate-500 font-bold py-2 animate-pulse">
+          等待房主開始遊戲...
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. 遊戲進行主畫面 (雙向互動：自己繪畫 + 對手觀察 & 猜題) -->
+    <section id="view-game" class="flex-1 flex flex-col gap-3 hidden">
+      
+      <!-- 頂部資訊看板：題目池 & 自己的秘密題目 & 完賽按鈕 -->
+      <div class="bg-white rounded-2xl p-3 shadow-md border-2 border-indigo-100 flex flex-wrap items-center justify-between gap-2">
+        <div class="flex items-center gap-3">
+          <!-- 自己的題目提示 (妙筆神猜核心: 每人題目不同但公開在公共池) -->
+          <div class="bg-amber-100 border-2 border-amber-400 px-3 py-1.5 rounded-xl">
+            <div class="text-[10px] font-bold text-amber-800 uppercase leading-none">你的秘密題目</div>
+            <div class="flex items-center gap-1.5 mt-0.5">
+              <span id="my-assigned-symbol" class="bg-amber-500 text-white text-xs font-black px-1.5 py-0.5 rounded">A-1</span>
+              <span id="my-assigned-word" class="font-black text-slate-900 text-base">---</span>
+            </div>
+          </div>
+          
+          <button onclick="openWordPoolModal()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2.5 py-2 rounded-xl flex items-center gap-1">
+            <i class="fa-solid fa-list-check"></i> 查看全場題庫卡
+          </button>
+        </div>
+
+        <!-- 搶第一完成按鈕 (速度分) -->
+        <button id="btn-finish-drawing" onclick="handleFinishDrawing()" class="bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs sm:text-sm px-4 py-2.5 rounded-xl shadow game-card flex items-center gap-1.5">
+          <i class="fa-solid fa-flag-checkered"></i> 宣告完成畫作！
+        </button>
+      </div>
+
+      <!-- 手機螢幕切換 Tab: [我的畫板] vs [對手即時畫板與猜題] -->
+      <div class="flex md:hidden bg-slate-200 p-1 rounded-xl font-bold text-xs">
+        <button id="tab-btn-draw" onclick="switchGameViewMobile('draw')" class="flex-1 py-2 rounded-lg bg-white text-indigo-600 shadow">
+          <i class="fa-solid fa-paint-brush mr-1"></i> 我的畫布
+        </button>
+        <button id="tab-btn-others" onclick="switchGameViewMobile('others')" class="flex-1 py-2 rounded-lg text-slate-600">
+          <i class="fa-solid fa-eye mr-1"></i> 搶猜對手 (<span id="unread-guesses-count">0</span>)
+        </button>
+      </div>
+
+      <!-- 核心遊戲區塊：桌面端為並排/網格，手機端由 Tab 切換 -->
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-3 flex-1">
+        
+        <!-- 左/主面板：我的畫布 (HTML5 Canvas) -->
+        <div id="panel-my-canvas" class="md:col-span-6 lg:col-span-5 flex flex-col bg-white rounded-2xl p-3 shadow-md border-2 border-slate-200">
+          <div class="flex justify-between items-center mb-2">
+            <span class="text-xs font-black text-slate-700 flex items-center gap-1">
+              <i class="fa-solid fa-pen-nib text-indigo-500"></i> 請畫出你的目標詞彙
+            </span>
+            <div class="flex items-center gap-1">
+              <button onclick="clearMyCanvas()" class="text-xs bg-rose-50 text-rose-600 hover:bg-rose-100 font-bold px-2.5 py-1 rounded-lg">
+                <i class="fa-solid fa-trash-can"></i> 清空
+              </button>
+            </div>
+          </div>
+
+          <!-- 畫布容器 (自適應正方形，座標按 0~1000 正規化傳輸) -->
+          <div class="relative w-full aspect-square bg-slate-50 rounded-xl border-2 border-dashed border-slate-300 overflow-hidden shadow-inner flex-1 max-h-[460px]">
+            <canvas id="myCanvas" class="drawing-board w-full h-full block"></canvas>
+          </div>
+
+          <!-- 畫筆工具列 -->
+          <div class="mt-3 flex items-center justify-between gap-2 bg-slate-50 p-2 rounded-xl">
+            <!-- 顏色選取 -->
+            <div class="flex items-center gap-1.5" id="color-palette">
+              <button onclick="setBrushColor('#0f172a')" class="w-6 h-6 rounded-full bg-slate-900 ring-2 ring-indigo-500 ring-offset-1"></button>
+              <button onclick="setBrushColor('#dc2626')" class="w-6 h-6 rounded-full bg-red-600"></button>
+              <button onclick="setBrushColor('#2563eb')" class="w-6 h-6 rounded-full bg-blue-600"></button>
+              <button onclick="setBrushColor('#16a34a')" class="w-6 h-6 rounded-full bg-emerald-600"></button>
+              <button onclick="setBrushColor('#d97706')" class="w-6 h-6 rounded-full bg-amber-600"></button>
+            </div>
+            <!-- 筆刷粗細 -->
+            <div class="flex items-center gap-1 text-slate-500 text-xs">
+              <span class="text-[10px]">粗細</span>
+              <input type="range" id="brush-size" min="2" max="14" value="4" class="w-16 accent-indigo-600" oninput="brushWidth = this.value">
+            </div>
+          </div>
+        </div>
+
+        <!-- 右面板：所有對手的即時小畫布 & 猜測按鈕群 (妙筆神猜精髓) -->
+        <div id="panel-opponents" class="hidden md:flex md:col-span-6 lg:col-span-7 flex-col bg-white rounded-2xl p-3 shadow-md border-2 border-slate-200 overflow-y-auto max-h-[640px]">
+          <div class="flex justify-between items-center mb-2">
+            <div>
+              <h3 class="text-xs font-black text-slate-700 flex items-center gap-1.5">
+                <i class="fa-solid fa-magnifying-glass text-amber-500"></i> 對手畫板 & 押注搶猜
+              </h3>
+              <p class="text-[11px] text-slate-400">點擊任意玩家對應的題號進行鎖定猜測！</p>
+            </div>
+            <span id="guesses-remaining-badge" class="bg-indigo-50 text-indigo-700 font-bold text-xs px-2 py-0.5 rounded-lg border border-indigo-200">
+              猜測次數無上限
+            </span>
+          </div>
+
+          <!-- 對手畫布列表 (即時渲染其他手機的筆跡) -->
+          <div id="opponents-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1 flex-1">
+            <!-- 動態生成對手的小畫板與猜題按鈕 -->
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- 4. 計分結算畫面 (Reveal & Scoring) -->
+    <section id="view-result" class="flex-1 flex flex-col justify-center items-center py-4 hidden">
+      <div class="bg-white rounded-3xl p-6 w-full max-w-2xl shadow-2xl border-4 border-amber-300">
+        <div class="text-center mb-5">
+          <div class="w-12 h-12 bg-amber-400 text-indigo-950 rounded-2xl mx-auto flex items-center justify-center text-2xl shadow mb-2 animate-bounce">
+            <i class="fa-solid fa-trophy"></i>
+          </div>
+          <h2 class="text-2xl font-black text-slate-800">本回合結算揭曉！</h2>
+          <p class="text-xs text-slate-500">妙筆神猜計分：猜對得分 + 完成速度獎勵 - 猜錯懲罰</p>
+        </div>
+
+        <!-- 排名列表 -->
+        <div id="leaderboard-container" class="space-y-2 mb-6">
+          <!-- 依據分數排行動態產出 -->
+        </div>
+
+        <!-- 揭曉詳細清單 (誰畫什麼、誰猜了什麼) -->
+        <div class="mb-6 bg-slate-50 p-3 rounded-2xl border border-slate-200 max-h-48 overflow-y-auto">
+          <h4 class="text-xs font-black text-slate-600 mb-2">答案與答題詳細明細：</h4>
+          <div id="reveal-details-list" class="space-y-1.5 text-xs text-slate-700">
+            <!-- 動態填入 -->
+          </div>
+        </div>
+
+        <!-- 下一局按鈕 (房主可重開) -->
+        <div class="flex gap-2">
+          <button id="btn-next-round" onclick="handleNextRound()" class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-sm game-card flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-rotate-right"></i> 再玩一局！
+          </button>
+          <button onclick="handleLeaveRoom()" class="py-3 px-4 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl text-sm">
+            回大廳
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= 題庫檢視彈窗 (Word Pool Modal) ================= -->
+  <div id="modal-word-pool" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-3 hidden">
+    <div class="bg-white rounded-3xl p-5 max-w-md w-full shadow-2xl border-4 border-indigo-400">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="text-base font-black text-indigo-900 flex items-center gap-1.5">
+          <i class="fa-solid fa-layer-group text-indigo-600"></i> 本局題卡詞彙池
+        </h3>
+        <button onclick="closeWordPoolModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <p class="text-xs text-slate-500 mb-3">每位玩家的題目都來自下方編號。觀察大家畫什麼，挑選對應的編號去猜！</p>
+      
+      <div id="word-pool-grid" class="grid grid-cols-2 gap-2 text-xs">
+        <!-- 動態列出 A1~A7 等題目清單 -->
+      </div>
+
+      <button onclick="closeWordPoolModal()" class="w-full mt-4 py-2.5 bg-indigo-600 text-white font-bold rounded-xl text-xs">
+        返回遊戲繼續作畫
+      </button>
+    </div>
+  </div>
+
+  <!-- ================= Firebase 設定 & GitHub Pages 教學彈窗 ================= -->
+  <div id="modal-config" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 hidden">
+    <div class="bg-white rounded-3xl p-5 max-w-lg w-full shadow-2xl border-4 border-amber-300 max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center mb-2">
+        <h3 class="text-base font-black text-slate-800 flex items-center gap-1.5">
+          <i class="fa-solid fa-fire text-amber-500"></i> Firebase 與 GitHub Pages 設定
+        </h3>
+        <button onclick="closeConfigModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- GitHub Pages 3分鐘教學 -->
+      <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-xs text-indigo-900 mb-4">
+        <div class="font-black mb-1 flex items-center gap-1">
+          <i class="fa-brands fa-github"></i> 如何放上 GitHub Pages 免費玩？
+        </div>
+        <ol class="list-decimal pl-4 space-y-1 text-slate-700">
+          <li>在 GitHub 建立一個公開 Repository (例如: <code class="bg-indigo-100 px-1 rounded">pictomania</code>)。</li>
+          <li>將本檔案命名為 <code class="bg-indigo-100 px-1 rounded">index.html</code> 上傳。</li>
+          <li>到 <strong>Settings &gt; Pages</strong>，Source 選 <strong>Deploy from a branch (main)</strong> 儲存。</li>
+          <li>數秒後獲取網址即可分享給所有朋友的手機！</li>
+        </ol>
+      </div>
+
+      <!-- Firebase Realtime Database 設定表單 -->
+      <div class="space-y-3">
+        <p class="text-xs text-slate-600 font-medium">
+          若要跨手機連線，請貼上你自己在 <a href="https://console.firebase.google.com/" target="_blank" class="text-indigo-600 font-bold underline">Firebase Console</a> 建立的 Config：
+        </p>
+        
+        <div>
+          <label class="block text-[11px] font-bold text-slate-600 mb-0.5">Firebase JSON Config 或 Database URL</label>
+          <textarea id="firebase-config-input" rows="4" placeholder='{ "apiKey": "...", "databaseURL": "https://your-rtdb.firebaseio.com", "projectId": "..." }' 
+            class="w-full p-2 text-xs font-mono border-2 border-slate-200 rounded-xl focus:border-indigo-500 focus:outline-none"></textarea>
+          <p class="text-[10px] text-slate-400 mt-0.5">請確認已在 Firebase 建立 <strong>Realtime Database</strong> 並將規則設為讀寫允許 (<code class="text-amber-700">".read": true, ".write": true</code>)。</p>
+        </div>
+
+        <div class="flex gap-2 pt-2">
+          <button onclick="saveFirebaseConfig()" class="flex-1 py-2.5 bg-amber-500 hover:bg-amber-600 text-indigo-950 font-black rounded-xl text-xs shadow">
+            儲存並連接 Firebase
+          </button>
+          <button onclick="clearFirebaseConfig()" class="py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs">
+            清除設定
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 頁尾宣告 -->
+  <footer class="py-2 text-center text-[10px] text-slate-400">
+    妙筆神猜 Pictomania 派對板 &copy; 2026 ・ 支援手機 / 平板 / 筆電跨裝置同步
+  </footer>
+
+  <!-- ================= 遊戲核心 JavaScript 邏輯 ================= -->
+  <script>
+    // ----------------------------------------------------
+    // 1. 詞庫卡片設定 (經典妙筆神猜結構：7個同類型/易混淆詞)
+    // ----------------------------------------------------
+    const WORD_CARDS = [
+      {
+        category: "生活用品與電器",
+        words: ["烤麵包機", "微波爐", "吹風機", "吸塵器", "檯燈", "洗衣機", "熱水瓶"]
+      },
+      {
+        category: "動物園狂想曲",
+        words: ["長頸鹿", "袋鼠", "刺蝟", "斑馬", "變色龍", "河馬", "無尾熊"]
+      },
+      {
+        category: "職業大搜查",
+        words: ["太空人", "消防員", "芭蕾舞者", "偵探", "考古學家", "魔術師", "廚師"]
+      },
+      {
+        category: "戶外與交通",
+        words: ["熱氣球", "潛水艇", "直升機", "獨木舟", "雪橇", "滑板車", "帆船"]
+      }
+    ];
+
+    // ----------------------------------------------------
+    // 2. 應用狀態管理 (State)
+    // ----------------------------------------------------
+    let currentUser = {
+      id: 'usr_' + Math.random().toString(36).substring(2, 9),
+      name: '',
+      color: '#4f46e5'
+    };
+    let currentRoomCode = null;
+    let isHost = false;
+    let isDemoMode = false;
+    let db = null; // Firebase DB 實例
+
+    // 遊戲運行中狀態
+    let gameState = {
+      phase: 'lobby', // 'lobby' | 'waiting' | 'drawing' | 'result'
+      activeCard: null,
+      secretAssignments: {}, // { od: { symbol: '1', word: '烤麵包機' } }
+      players: {}, // { uid: { id, name, isHost, finishedOrder, score } }
+      guesses: {}, // { guesserId: { targetId: guessedWordIndex } }
+      speedBonusCount: 0
+    };
+
+    // 本機畫布狀態
+    let myCanvas, myCtx;
+    let isDrawing = false;
+    let lastX = 0, lastY = 0;
+    let brushColor = '#0f172a';
+    let brushWidth = 4;
+    let pendingStrokeBatch = [];
+    let strokeFlushTimer = null;
+
+    // ----------------------------------------------------
+    // 3. 初始化 & 本機儲存讀取
+    // ----------------------------------------------------
+    window.onload = function() {
+      // 讀取快取的暱稱與 Firebase 設定
+      const savedName = localStorage.getItem('pictomania_username');
+      if (savedName) document.getElementById('input-username').value = savedName;
+
+      // 檢查網址是否有自帶 room code: ?room=ABCD
+      const urlParams = new URLSearchParams(window.location.search);
+      const roomParam = urlParams.get('room');
+      if (roomParam) {
+        document.getElementById('input-room-code').value = roomParam.toUpperCase();
+        switchLobbyTab('join');
+      }
+
+      initCanvas();
+      setupFirebaseFromStorage();
+    };
+
+    function setupFirebaseFromStorage() {
+      const storedConfig = localStorage.getItem('pictomania_firebase_config');
+      if (storedConfig) {
+        try {
+          const config = JSON.parse(storedConfig);
+          if (!firebase.apps.length) {
+            firebase.initializeApp(config);
+          }
+          db = firebase.database();
+          document.getElementById('top-status-text').innerText = "Firebase 即時同步已就緒";
+        } catch(e) {
+          console.warn("Firebase 初始化異常:", e);
+        }
+      }
+    }
+
+    // ----------------------------------------------------
+    // 4. 畫布繪製系統 (正規化 0~1000 座標，跨螢幕高精確)
+    // ----------------------------------------------------
+    function initCanvas() {
+      myCanvas = document.getElementById('myCanvas');
+      myCtx = myCanvas.getContext('2d', { willReadFrequently: true });
+
+      function resizeCanvasToDisplaySize() {
+        const rect = myCanvas.getBoundingClientRect();
+        // 畫布實體像素設為固定 800x800，CSS 縮放，保證繪圖精細度完全一致
+        myCanvas.width = 800;
+        myCanvas.height = 800;
+        myCtx.lineCap = 'round';
+        myCtx.lineJoin = 'round';
+      }
+      resizeCanvasToDisplaySize();
+      window.addEventListener('resize', resizeCanvasToDisplaySize);
+
+      // 滑鼠事件
+      myCanvas.addEventListener('mousedown', startDraw);
+      myCanvas.addEventListener('mousemove', drawMove);
+      window.addEventListener('mouseup', endDraw);
+
+      // 觸控事件 (防止滑動網頁)
+      myCanvas.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        startDraw(touch);
+      }, { passive: false });
+
+      myCanvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        drawMove(touch);
+      }, { passive: false });
+
+      window.addEventListener('touchend', endDraw);
+    }
+
+    function getNormalizedCoords(e) {
+      const rect = myCanvas.getBoundingClientRect();
+      const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+      const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+      
+      const x = Math.max(0, Math.min(1000, Math.round(((clientX - rect.left) / rect.width) * 1000)));
+      const y = Math.max(0, Math.min(1000, Math.round(((clientY - rect.top) / rect.height) * 1000)));
+      return { x, y };
+    }
+
+    function startDraw(e) {
+      if (gameState.phase !== 'drawing') return;
+      isDrawing = true;
+      const coords = getNormalizedCoords(e);
+      lastX = coords.x;
+      lastY = coords.y;
+
+      // 記錄起點筆劃
+      pushStrokeSegment(lastX, lastY, lastX, lastY, true);
+      renderLocalSegment(lastX, lastY, lastX, lastY, brushColor, brushWidth);
+    }
+
+    function drawMove(e) {
+      if (!isDrawing || gameState.phase !== 'drawing') return;
+      const coords = getNormalizedCoords(e);
+      
+      // 當移動距離大於門檻才記錄，減少封包量
+      const dist = Math.hypot(coords.x - lastX, coords.y - lastY);
+      if (dist >= 3) {
+        pushStrokeSegment(lastX, lastY, coords.x, coords.y, false);
+        renderLocalSegment(lastX, lastY, coords.x, coords.y, brushColor, brushWidth);
+        lastX = coords.x;
+        lastY = coords.y;
+      }
+    }
+
+    function endDraw() {
+      if (isDrawing) {
+        isDrawing = false;
+        flushPendingStrokes(); // 放開手立即推送剩餘筆劃
+      }
+    }
+
+    function renderLocalSegment(x1, y1, x2, y2, color, width) {
+      // 0~1000 映射到 800x800
+      const sx1 = (x1 / 1000) * myCanvas.width;
+      const sy1 = (y1 / 1000) * myCanvas.height;
+      const sx2 = (x2 / 1000) * myCanvas.width;
+      const sy2 = (y2 / 1000) * myCanvas.height;
+
+      myCtx.strokeStyle = color;
+      myCtx.lineWidth = (width / 1000) * myCanvas.width;
+      myCtx.beginPath();
+      myCtx.moveTo(sx1, sy1);
+      myCtx.lineTo(sx2, sy2);
+      myCtx.stroke();
+    }
+
+    function setBrushColor(color) {
+      brushColor = color;
+      // UI Highlight
+      const buttons = document.querySelectorAll('#color-palette button');
+      buttons.forEach(b => b.classList.remove('ring-2', 'ring-indigo-500', 'ring-offset-1'));
+      event.target.classList.add('ring-2', 'ring-indigo-500', 'ring-offset-1');
+    }
+
+    function clearMyCanvas() {
+      myCtx.clearRect(0, 0, myCanvas.width, myCanvas.height);
+      if (db && currentRoomCode) {
+        db.ref(`rooms/${currentRoomCode}/drawings/${currentUser.id}`).set({ cleared: Date.now() });
+      }
+    }
+
+    // ----------------------------------------------------
+    // 5. 筆劃節流打包 (Throttling / Batching) -> 50ms 發送一次
+    // ----------------------------------------------------
+    function pushStrokeSegment(x1, y1, x2, y2, isStart) {
+      pendingStrokeBatch.push([x1, y1, x2, y2, brushColor, brushWidth, isStart ? 1 : 0]);
+      
+      if (!strokeFlushTimer) {
+        strokeFlushTimer = setTimeout(() => {
+          flushPendingStrokes();
+        }, 60); // 每秒最多約 16 次批次更新，對 Firebase RTDB 負荷小且極度滑順
+      }
+    }
+
+    function flushPendingStrokes() {
+      if (strokeFlushTimer) {
+        clearTimeout(strokeFlushTimer);
+        strokeFlushTimer = null;
+      }
+      if (pendingStrokeBatch.length === 0) return;
+
+      const batchToSend = [...pendingStrokeBatch];
+      pendingStrokeBatch = [];
+
+      if (db && currentRoomCode && !isDemoMode) {
+        // 使用 RTDB Push 陣列
+        db.ref(`rooms/${currentRoomCode}/drawings/${currentUser.id}/strokes`).push(batchToSend);
+      }
+    }
+
+    // ----------------------------------------------------
+    // 6. 大廳與房間創建邏輯
+    // ----------------------------------------------------
+    function switchLobbyTab(tab) {
+      if (tab === 'create') {
+        document.getElementById('panel-create').classList.remove('hidden');
+        document.getElementById('panel-join').classList.add('hidden');
+        document.getElementById('btn-tab-create').className = 'py-2 rounded-lg font-bold text-xs bg-white text-indigo-600 shadow';
+        document.getElementById('btn-tab-join').className = 'py-2 rounded-lg font-bold text-xs text-slate-500';
+      } else {
+        document.getElementById('panel-create').classList.add('hidden');
+        document.getElementById('panel-join').classList.remove('hidden');
+        document.getElementById('btn-tab-join').className = 'py-2 rounded-lg font-bold text-xs bg-white text-indigo-600 shadow';
+        document.getElementById('btn-tab-create').className = 'py-2 rounded-lg font-bold text-xs text-slate-500';
+      }
+    }
+
+    function checkUsername() {
+      const nameInput = document.getElementById('input-username');
+      const name = nameInput.value.trim();
+      if (!name) {
+        showToast("請先輸入你的畫家暱稱！");
+        nameInput.focus();
+        return null;
+      }
+      currentUser.name = name;
+      localStorage.setItem('pictomania_username', name);
+      return name;
+    }
+
+    function handleCreateRoom() {
+      if (!checkUsername()) return;
+      if (!db) {
+        showConfigPrompt();
+        return;
+      }
+      isHost = true;
+      currentRoomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
+      
+      const initialRoomData = {
+        meta: {
+          code: currentRoomCode,
+          hostId: currentUser.id,
+          createdAt: Date.now(),
+          state: 'waiting'
+        },
+        players: {
+          [currentUser.id]: {
+            id: currentUser.id,
+            name: currentUser.name,
+            isHost: true,
+            score: 0
+          }
+        }
+      };
+
+      db.ref(`rooms/${currentRoomCode}`).set(initialRoomData).then(() => {
+        enterWaitingRoom();
+      }).catch(err => {
+        showToast("建立房間失敗，請確認 Firebase 設定權限");
+      });
+    }
+
+    function handleJoinRoom() {
+      if (!checkUsername()) return;
+      const codeInput = document.getElementById('input-room-code').value.trim().toUpperCase();
+      if (codeInput.length !== 4) {
+        showToast("請輸入正確的 4 位房間代碼！");
+        return;
+      }
+      if (!db) {
+        showConfigPrompt();
+        return;
+      }
+
+      currentRoomCode = codeInput;
+      db.ref(`rooms/${currentRoomCode}`).once('value').then(snapshot => {
+        if (!snapshot.exists()) {
+          showToast("找不到此房間，請確認代碼！");
+          return;
+        }
+        isHost = false;
+        // 加入玩家名冊
+        db.ref(`rooms/${currentRoomCode}/players/${currentUser.id}`).set({
+          id: currentUser.id,
+          name: currentUser.name,
+          isHost: false,
+          score: 0
+        });
+        enterWaitingRoom();
+      });
+    }
+
+    function enterWaitingRoom() {
+      switchView('view-room');
+      document.getElementById('room-badge').classList.remove('hidden');
+      document.getElementById('room-code-display').innerText = currentRoomCode;
+      document.getElementById('waiting-room-code').innerText = currentRoomCode;
+
+      if (!isHost) {
+        document.getElementById('host-controls').classList.add('hidden');
+        document.getElementById('client-wait-msg').classList.remove('hidden');
+      } else {
+        document.getElementById('host-controls').classList.remove('hidden');
+        document.getElementById('client-wait-msg').classList.add('hidden');
+      }
+
+      // 監聽 Firebase 房間資訊
+      listenToRoomChanges();
+    }
+
+    function listenToRoomChanges() {
+      if (!db || !currentRoomCode) return;
+
+      const roomRef = db.ref(`rooms/${currentRoomCode}`);
+      roomRef.on('value', (snap) => {
+        const val = snap.val();
+        if (!val) return;
+
+        // 玩家更新
+        if (val.players) {
+          gameState.players = val.players;
+          renderWaitingPlayers(val.players);
+        }
+
+        // 狀態機切換
+        if (val.meta && val.meta.state) {
+          const remoteState = val.meta.state;
+          if (remoteState === 'drawing' && gameState.phase !== 'drawing') {
+            onGameStartedRemote(val);
+          } else if (remoteState === 'result' && gameState.phase !== 'result') {
+            onGameEndedRemote(val);
+          }
+        }
+
+        // 猜測同步更新
+        if (val.guesses) {
+          gameState.guesses = val.guesses;
+          updateGuessedBadges();
+        }
+
+        // 完成按鈕計數 (速度標記)
+        if (val.finishOrders) {
+          renderFinishOrders(val.finishOrders);
+        }
+      });
+
+      // 獨立監聽畫筆筆跡 (只接收其他人的繪圖)
+      db.ref(`rooms/${currentRoomCode}/drawings`).on('child_added', setupOpponentDrawingListener);
+    }
+
+    function renderWaitingPlayers(playersObj) {
+      const list = document.getElementById('players-list-grid');
+      list.innerHTML = '';
+      const playerArr = Object.values(playersObj);
+      document.getElementById('player-count').innerText = playerArr.length;
+
+      playerArr.forEach(p => {
+        const isMe = p.id === currentUser.id;
+        const div = document.createElement('div');
+        div.className = `p-2.5 rounded-xl border flex items-center gap-2 ${isMe ? 'bg-indigo-50 border-indigo-300' : 'bg-slate-50 border-slate-200'}`;
+        div.innerHTML = `
+          <div class="w-7 h-7 rounded-full ${isMe ? 'bg-indigo-600' : 'bg-slate-700'} text-white flex items-center justify-center text-xs font-bold">
+            ${p.name.charAt(0)}
+          </div>
+          <div class="flex-1 truncate text-xs font-bold text-slate-800">
+            ${p.name} ${isMe ? '<span class="text-[10px] text-indigo-500 font-normal">(你)</span>' : ''}
+            ${p.isHost ? '<span class="text-[10px] text-amber-500 ml-1"><i class="fa-solid fa-crown"></i> 房主</span>' : ''}
+          </div>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    // ----------------------------------------------------
+    // 7. 妙筆神猜開局：發題與分配機制
+    // ----------------------------------------------------
+    function handleStartGame() {
+      if (Object.keys(gameState.players).length < 2 && !isDemoMode) {
+        showToast("至少需要 2 位玩家才能開始遊戲喔！");
+        return;
+      }
+
+      // 1. 隨機選一張題卡
+      const card = WORD_CARDS[Math.floor(Math.random() * WORD_CARDS.length)];
+      
+      // 2. 為每位玩家分配一個不重複的秘密題號 (1 ~ 7)
+      const availableIndexes = [0, 1, 2, 3, 4, 5, 6].sort(() => Math.random() - 0.5);
+      const assignments = {};
+      
+      const playerIds = Object.keys(gameState.players);
+      playerIds.forEach((pid, idx) => {
+        const assignedWordIdx = availableIndexes[idx % availableIndexes.length];
+        assignments[pid] = {
+          number: assignedWordIdx + 1,
+          word: card.words[assignedWordIdx]
+        };
+      });
+
+      // 3. 推送至 Firebase 啟動遊戲
+      db.ref(`rooms/${currentRoomCode}`).update({
+        'meta/state': 'drawing',
+        'activeCard': card,
+        'secretAssignments': assignments,
+        'finishOrders': {},
+        'guesses': {},
+        'drawings': {}
+      });
+    }
+
+    function onGameStartedRemote(val) {
+      gameState.phase = 'drawing';
+      gameState.activeCard = val.activeCard;
+      gameState.secretAssignments = val.secretAssignments;
+      gameState.speedBonusCount = 0;
+
+      // 取得自己的題目
+      const myTask = val.secretAssignments[currentUser.id];
+      if (myTask) {
+        document.getElementById('my-assigned-symbol').innerText = `#${myTask.number}`;
+        document.getElementById('my-assigned-word').innerText = myTask.word;
+      }
+
+      // 清除本地畫布準備作畫
+      clearMyCanvas();
+      setupOpponentsView();
+      populateWordPoolModal();
+
+      switchView('view-game');
+      document.getElementById('btn-finish-drawing').classList.remove('opacity-50', 'pointer-events-none');
+      document.getElementById('btn-finish-drawing').innerHTML = `<i class="fa-solid fa-flag-checkered"></i> 宣告完成畫作！`;
+    }
+
+    // ----------------------------------------------------
+    // 8. 即時對手畫板建構與監聽
+    // ----------------------------------------------------
+    const opponentCanvasCtxs = {};
+
+    function setupOpponentsView() {
+      const container = document.getElementById('opponents-grid');
+      container.innerHTML = '';
+
+      Object.values(gameState.players).forEach(p => {
+        if (p.id === currentUser.id) return; // 不顯示自己的
+
+        const card = document.createElement('div');
+        card.className = "bg-slate-50 border-2 border-slate-200 rounded-xl p-2.5 flex flex-col justify-between";
+        card.id = `opp-card-${p.id}`;
+
+        card.innerHTML = `
+          <div class="flex justify-between items-center mb-1">
+            <span class="text-xs font-bold text-slate-800 truncate max-w-[120px]">${p.name}</span>
+            <span id="opp-status-${p.id}" class="text-[10px] text-slate-400 font-bold bg-white px-1.5 py-0.5 rounded border">作畫中...</span>
+          </div>
+
+          <!-- 對手的縮圖畫布 -->
+          <div class="relative w-full aspect-square bg-white rounded-lg border border-slate-300 overflow-hidden shadow-inner my-1">
+            <canvas id="canvas-opp-${p.id}" width="400" height="400" class="w-full h-full block"></canvas>
+            <!-- 猜對標籤覆蓋 -->
+            <div id="guessed-overlay-${p.id}" class="absolute inset-0 bg-indigo-900/40 backdrop-blur-[1px] hidden flex flex-col items-center justify-center text-white font-black text-xs">
+              <i class="fa-solid fa-check-circle text-amber-400 text-2xl mb-1"></i>
+              已鎖定猜測
+            </div>
+          </div>
+
+          <!-- 猜題押注按鈕群 (1~7 號) -->
+          <div class="mt-1">
+            <div class="text-[10px] font-bold text-slate-500 mb-1">猜他的題號：</div>
+            <div class="grid grid-cols-7 gap-1">
+              ${[1, 2, 3, 4, 5, 6, 7].map(num => `
+                <button onclick="submitGuess('${p.id}', ${num})" 
+                  id="guess-btn-${p.id}-${num}"
+                  class="py-1 bg-white hover:bg-amber-100 border border-slate-300 rounded font-black text-[11px] text-slate-700 active:scale-95 transition">
+                  ${num}
+                </button>
+              `).join('')}
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+
+        // 綁定 Canvas 上下文
+        const oppCanvas = document.getElementById(`canvas-opp-${p.id}`);
+        if (oppCanvas) {
+          const ctx = oppCanvas.getContext('2d');
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          opponentCanvasCtxs[p.id] = { canvas: oppCanvas, ctx: ctx };
+        }
+      });
+    }
+
+    function setupOpponentDrawingListener(snapshot) {
+      const playerId = snapshot.key;
+      if (playerId === currentUser.id) return; // 略過自己
+
+      const oppRef = snapshot.ref;
+      
+      // 監聽新加入的筆劃批次
+      oppRef.child('strokes').on('child_added', strokeBatchSnap => {
+        const batch = strokeBatchSnap.val();
+        if (!Array.isArray(batch)) return;
+
+        const opp = opponentCanvasCtxs[playerId];
+        if (!opp) return;
+
+        batch.forEach(seg => {
+          const [x1, y1, x2, y2, color, width] = seg;
+          // 將 1000x1000 映射到 400x400
+          const sx1 = (x1 / 1000) * opp.canvas.width;
+          const sy1 = (y1 / 1000) * opp.canvas.height;
+          const sx2 = (x2 / 1000) * opp.canvas.width;
+          const sy2 = (y2 / 1000) * opp.canvas.height;
+
+          opp.ctx.strokeStyle = color;
+          opp.ctx.lineWidth = (width / 1000) * opp.canvas.width;
+          opp.ctx.beginPath();
+          opp.ctx.moveTo(sx1, sy1);
+          opp.ctx.lineTo(sx2, sy2);
+          opp.ctx.stroke();
+        });
+      });
+
+      // 監聽清空
+      oppRef.child('cleared').on('value', () => {
+        const opp = opponentCanvasCtxs[playerId];
+        if (opp) opp.ctx.clearRect(0, 0, opp.canvas.width, opp.canvas.height);
+      });
+    }
+
+    // ----------------------------------------------------
+    // 9. 搶猜機制 (Guessing System)
+    // ----------------------------------------------------
+    function submitGuess(targetPlayerId, guessedNumber) {
+      if (gameState.phase !== 'drawing') return;
+
+      // 檢查是否已猜過此玩家 (妙筆神猜規則：每位對手你只能下注一張猜題卡)
+      const myGuesses = gameState.guesses[currentUser.id] || {};
+      if (myGuesses[targetPlayerId]) {
+        showToast("你已經猜過這位玩家囉！");
+        return;
+      }
+
+      // 震動或反饋
+      if (navigator.vibrate) navigator.vibrate(50);
+
+      // 寫入遠端猜測資料
+      if (db && currentRoomCode) {
+        db.ref(`rooms/${currentRoomCode}/guesses/${currentUser.id}/${targetPlayerId}`).set({
+          guessedNumber: guessedNumber,
+          timestamp: Date.now()
+        });
+      } else if (isDemoMode) {
+        if (!gameState.guesses[currentUser.id]) gameState.guesses[currentUser.id] = {};
+        gameState.guesses[currentUser.id][targetPlayerId] = { guessedNumber: guessedNumber, timestamp: Date.now() };
+        updateGuessedBadges();
+      }
+
+      showToast(`已鎖定你對該玩家的猜測！`);
+    }
+
+    function updateGuessedBadges() {
+      const myGuesses = gameState.guesses[currentUser.id] || {};
+      Object.keys(myGuesses).forEach(targetId => {
+        const guessInfo = myGuesses[targetId];
+        const overlay = document.getElementById(`guessed-overlay-${targetId}`);
+        if (overlay) overlay.classList.remove('hidden');
+
+        // 高亮選取的按鈕
+        const btn = document.getElementById(`guess-btn-${targetId}-${guessInfo.guessedNumber}`);
+        if (btn) {
+          btn.classList.add('bg-indigo-600', 'text-white', 'border-indigo-600');
+        }
+      });
+    }
+
+    // ----------------------------------------------------
+    // 10. 完成繪畫 & 速度獎勵 (Finish Button)
+    // ----------------------------------------------------
+    function handleFinishDrawing() {
+      const btn = document.getElementById('btn-finish-drawing');
+      btn.classList.add('opacity-50', 'pointer-events-none');
+      btn.innerHTML = `<i class="fa-solid fa-check"></i> 已宣告完成！`;
+
+      if (db && currentRoomCode) {
+        db.ref(`rooms/${currentRoomCode}/finishOrders/${currentUser.id}`).set(Date.now());
+      } else if (isDemoMode) {
+        simulateDemoFinish();
+      }
+    }
+
+    function renderFinishOrders(finishOrders) {
+      const orderKeys = Object.keys(finishOrders);
+      orderKeys.forEach(pid => {
+        const badge = document.getElementById(`opp-status-${pid}`);
+        if (badge) {
+          badge.className = "text-[10px] text-emerald-600 font-black bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-300";
+          badge.innerHTML = `<i class="fa-solid fa-check"></i> 已完成`;
+        }
+      });
+
+      // 妙筆神猜規則：若所有人都完成，或房主決定結算
+      if (orderKeys.length >= Object.keys(gameState.players).length && isHost) {
+        setTimeout(triggerScoringPhase, 800);
+      }
+    }
+
+    // ----------------------------------------------------
+    // 11. 計分與揭曉結算 (Scoring Logic)
+    // ----------------------------------------------------
+    function triggerScoringPhase() {
+      if (!isHost && !isDemoMode) return;
+      if (db && currentRoomCode) {
+        db.ref(`rooms/${currentRoomCode}/meta/state`).set('result');
+      }
+    }
+
+    function onGameEndedRemote(val) {
+      gameState.phase = 'result';
+      calculateAndDisplayScores(val);
+      switchView('view-result');
+    }
+
+    function calculateAndDisplayScores(val) {
+      const players = val.players || {};
+      const secret = val.secretAssignments || {};
+      const guesses = val.guesses || {};
+      const finishOrders = val.finishOrders || {};
+
+      // 速度分排行 (最快依序得 3分, 2分, 1分)
+      const sortedFinishers = Object.entries(finishOrders).sort((a,b) => a[1] - b[1]);
+      const speedBonusMap = {};
+      if (sortedFinishers[0]) speedBonusMap[sortedFinishers[0][0]] = 3;
+      if (sortedFinishers[1]) speedBonusMap[sortedFinishers[1][0]] = 2;
+      if (sortedFinishers[2]) speedBonusMap[sortedFinishers[2][0]] = 1;
+
+      // 計分器
+      const finalScores = {};
+      const detailsLog = [];
+
+      Object.keys(players).forEach(pid => {
+        finalScores[pid] = {
+          name: players[pid].name,
+          correctGuesses: 0,
+          wrongGuesses: 0,
+          speedBonus: speedBonusMap[pid] || 0,
+          total: 0
+        };
+      });
+
+      // 驗證每個玩家的猜題
+      Object.keys(guesses).forEach(guesserId => {
+        const guesserGuesses = guesses[guesserId];
+        Object.keys(guesserGuesses).forEach(targetId => {
+          const guessData = guesserGuesses[targetId];
+          const targetRealWord = secret[targetId];
+
+          if (targetRealWord && targetRealWord.number === guessData.guessedNumber) {
+            // 猜對得 2 分
+            if (finalScores[guesserId]) finalScores[guesserId].correctGuesses += 2;
+            detailsLog.push(`🎯 <strong>${players[guesserId]?.name}</strong> 猜對了 <strong>${players[targetId]?.name}</strong> 的「${targetRealWord.word}」(+2分)`);
+          } else {
+            // 猜錯扣 1 分
+            if (finalScores[guesserId]) finalScores[guesserId].wrongGuesses += 1;
+            detailsLog.push(`❌ <strong>${players[guesserId]?.name}</strong> 猜錯了 <strong>${players[targetId]?.name}</strong> 的題目 (-1分)`);
+          }
+        });
+      });
+
+      // 計算總分
+      Object.keys(finalScores).forEach(pid => {
+        const s = finalScores[pid];
+        s.total = (s.correctGuesses + s.speedBonus) - s.wrongGuesses;
+      });
+
+      // 渲染排行榜
+      const leaderboard = Object.values(finalScores).sort((a, b) => b.total - a.total);
+      const container = document.getElementById('leaderboard-container');
+      container.innerHTML = '';
+
+      leaderboard.forEach((item, index) => {
+        const rankColors = [
+          'bg-amber-100 border-amber-400 text-amber-900',
+          'bg-slate-100 border-slate-300 text-slate-800',
+          'bg-orange-50 border-orange-300 text-orange-900'
+        ];
+        const colorClass = rankColors[index] || 'bg-white border-slate-200 text-slate-700';
+
+        const row = document.createElement('div');
+        row.className = `p-3 rounded-2xl border-2 flex items-center justify-between shadow-sm ${colorClass}`;
+        row.innerHTML = `
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 rounded-xl bg-white shadow flex items-center justify-center font-black text-sm">
+              ${index + 1}
+            </div>
+            <div>
+              <div class="font-black text-sm">${item.name}</div>
+              <div class="text-[11px] opacity-75">
+                答對: ${item.correctGuesses/2} 題 | 答錯: ${item.wrongGuesses} 題 | 速度獎勵: +${item.speedBonus}
+              </div>
+            </div>
+          </div>
+          <div class="text-xl font-black">${item.total} <span class="text-xs font-normal">分</span></div>
+        `;
+        container.appendChild(row);
+      });
+
+      // 渲染詳細明細
+      const logContainer = document.getElementById('reveal-details-list');
+      logContainer.innerHTML = detailsLog.length ? detailsLog.join('<br>') : '本局沒有人下注猜測！';
+    }
+
+    function handleNextRound() {
+      if (isHost && db && currentRoomCode) {
+        handleStartGame();
+      } else if (isDemoMode) {
+        startDemoRound();
+      } else {
+        showToast("請等待房主啟動下一回合！");
+      }
+    }
+
+    function handleLeaveRoom() {
+      if (db && currentRoomCode) {
+        db.ref(`rooms/${currentRoomCode}/players/${currentUser.id}`).remove();
+      }
+      currentRoomCode = null;
+      gameState.phase = 'lobby';
+      document.getElementById('room-badge').classList.add('hidden');
+      switchView('view-lobby');
+    }
+
+    // ----------------------------------------------------
+    // 12. 單機機器人模擬模式 (Demo Mode: 免設定直接玩)
+    // ----------------------------------------------------
+    function startDemoMode() {
+      if (!checkUsername()) return;
+      isDemoMode = true;
+      isHost = true;
+      currentRoomCode = "DEMO";
+
+      // 產生 2 位機器人好友
+      gameState.players = {
+        [currentUser.id]: { id: currentUser.id, name: currentUser.name, isHost: true, score: 0 },
+        'bot_1': { id: 'bot_1', name: '達文西機器人', isHost: false, score: 0 },
+        'bot_2': { id: 'bot_2', name: '小畫家阿呆', isHost: false, score: 0 }
+      };
+
+      startDemoRound();
+    }
+
+    function startDemoRound() {
+      const card = WORD_CARDS[0];
+      gameState.activeCard = card;
+      gameState.secretAssignments = {
+        [currentUser.id]: { number: 1, word: card.words[0] },
+        'bot_1': { number: 2, word: card.words[1] },
+        'bot_2': { number: 3, word: card.words[2] }
+      };
+      gameState.guesses = {};
+      gameState.finishOrders = {};
+
+      onGameStartedRemote({
+        activeCard: card,
+        secretAssignments: gameState.secretAssignments,
+        players: gameState.players
+      });
+
+      // 模擬機器人在畫布上畫出逗趣線條
+      simulateBotDrawing('bot_1');
+      simulateBotDrawing('bot_2');
+    }
+
+    function simulateBotDrawing(botId) {
+      setTimeout(() => {
+        const opp = opponentCanvasCtxs[botId];
+        if (!opp) return;
+        opp.ctx.strokeStyle = '#2563eb';
+        opp.ctx.lineWidth = 6;
+        
+        // 隨機畫幾道筆跡
+        let t = 0;
+        const interval = setInterval(() => {
+          t++;
+          const x = 100 + Math.sin(t) * 80 + t * 15;
+          const y = 150 + Math.cos(t) * 50;
+          opp.ctx.beginPath();
+          opp.ctx.arc(x, y, 4, 0, Math.PI * 2);
+          opp.ctx.fill();
+
+          if (t > 15) {
+            clearInterval(interval);
+            // 機器人猜測玩家
+            if (!gameState.guesses[botId]) gameState.guesses[botId] = {};
+            gameState.guesses[botId][currentUser.id] = { guessedNumber: 1, timestamp: Date.now() };
+          }
+        }, 120);
+      }, 800);
+    }
+
+    function simulateDemoFinish() {
+      gameState.finishOrders[currentUser.id] = Date.now();
+      gameState.finishOrders['bot_1'] = Date.now() + 2000;
+      gameState.finishOrders['bot_2'] = Date.now() + 4000;
+      renderFinishOrders(gameState.finishOrders);
+      setTimeout(() => {
+        onGameEndedRemote({
+          players: gameState.players,
+          secretAssignments: gameState.secretAssignments,
+          guesses: gameState.guesses,
+          finishOrders: gameState.finishOrders
+        });
+      }, 1500);
+    }
+
+    // ----------------------------------------------------
+    // 13. UI 視圖切換 & 題庫彈窗輔助
+    // ----------------------------------------------------
+    function switchView(viewId) {
+      ['view-lobby', 'view-room', 'view-game', 'view-result'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+      });
+      document.getElementById(viewId).classList.remove('hidden');
+    }
+
+    function switchGameViewMobile(tab) {
+      const myCanvasPanel = document.getElementById('panel-my-canvas');
+      const opponentsPanel = document.getElementById('panel-opponents');
+      const tabDraw = document.getElementById('tab-btn-draw');
+      const tabOthers = document.getElementById('tab-btn-others');
+
+      if (tab === 'draw') {
+        myCanvasPanel.classList.remove('hidden');
+        opponentsPanel.classList.add('hidden');
+        tabDraw.className = 'flex-1 py-2 rounded-lg bg-white text-indigo-600 shadow';
+        tabOthers.className = 'flex-1 py-2 rounded-lg text-slate-600';
+      } else {
+        myCanvasPanel.classList.add('hidden');
+        opponentsPanel.classList.remove('hidden');
+        opponentsPanel.classList.add('flex');
+        tabOthers.className = 'flex-1 py-2 rounded-lg bg-white text-indigo-600 shadow';
+        tabDraw.className = 'flex-1 py-2 rounded-lg text-slate-600';
+      }
+    }
+
+    function openWordPoolModal() {
+      document.getElementById('modal-word-pool').classList.remove('hidden');
+    }
+    function closeWordPoolModal() {
+      document.getElementById('modal-word-pool').classList.add('hidden');
+    }
+
+    function populateWordPoolModal() {
+      if (!gameState.activeCard) return;
+      const grid = document.getElementById('word-pool-grid');
+      grid.innerHTML = '';
+      gameState.activeCard.words.forEach((w, i) => {
+        const item = document.createElement('div');
+        item.className = "bg-slate-50 border border-slate-200 rounded-xl p-2.5 flex items-center gap-2";
+        item.innerHTML = `
+          <span class="w-6 h-6 rounded-lg bg-indigo-600 text-white font-black flex items-center justify-center text-xs shadow-sm">${i + 1}</span>
+          <span class="font-bold text-slate-800 text-sm">${w}</span>
+        `;
+        grid.appendChild(item);
+      });
+    }
+
+    function openConfigModal() {
+      document.getElementById('modal-config').classList.remove('hidden');
+    }
+    function closeConfigModal() {
+      document.getElementById('modal-config').classList.add('hidden');
+    }
+
+    function saveFirebaseConfig() {
+      const val = document.getElementById('firebase-config-input').value.trim();
+      try {
+        const parsed = JSON.parse(val);
+        localStorage.setItem('pictomania_firebase_config', JSON.stringify(parsed));
+        closeConfigModal();
+        showToast("Firebase 設定已儲存！請重新整理網頁");
+        setTimeout(() => location.reload(), 800);
+      } catch (e) {
+        showToast("格式錯誤，請確認輸入正確的 JSON 格式！");
+      }
+    }
+
+    function clearFirebaseConfig() {
+      localStorage.removeItem('pictomania_firebase_config');
+      document.getElementById('firebase-config-input').value = '';
+      showToast("已清除設定");
+    }
+
+    function showConfigPrompt() {
+      openConfigModal();
+      showToast("尚未連接 Firebase，請先填寫設定或使用模擬模式！");
+    }
+
+    function copyRoomLink() {
+      const url = `${window.location.origin}${window.location.pathname}?room=${currentRoomCode}`;
+      const tempInput = document.createElement('input');
+      tempInput.value = url;
+      document.body.appendChild(tempInput);
+      tempInput.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempInput);
+      showToast("已複製房間邀請連結！直接發給朋友即可加入");
+    }
+
+    // 吐司提示訊息 (取代系統 alert)
+    function showToast(msg) {
+      const existing = document.getElementById('toast-msg');
+      if (existing) existing.remove();
+
+      const toast = document.createElement('div');
+      toast.id = 'toast-msg';
+      toast.className = 'fixed bottom-5 left-1/2 -translate-x-1/2 bg-slate-900/90 text-white font-bold text-xs px-4 py-2.5 rounded-2xl shadow-2xl z-50 transition-all border border-slate-700 max-w-[90vw] text-center';
+      toast.innerText = msg;
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 2400);
+    }
+  </script>
+</body>
+</html>
