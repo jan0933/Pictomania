@@ -5,60 +5,58 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>妙筆神猜 (Pictomania) - 即時連線版</title>
   
-  <!-- Tailwind CSS & FontAwesome -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  
-  <!-- QRCode.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
-  <!-- 引入獨立題庫檔案 -->
+  <!-- 引入題庫與 Firebase SDK -->
   <script src="words.js"></script>
-
-  <!-- Firebase App & Realtime Database SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
   <style>
-    .touch-none {
-      touch-action: none;
-    }
-    ::-webkit-scrollbar {
-      width: 4px;
-      height: 4px;
-    }
-    ::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
-      border-radius: 4px;
-    }
+    .touch-none { touch-action: none; }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col antialiased select-none">
 
   <!-- 頂部狀態列 -->
-  <header class="bg-indigo-600 text-white shadow-md px-4 py-3 flex items-center justify-between sticky top-0 z-30">
+  <header class="bg-indigo-600 text-white shadow-md px-4 py-2.5 flex items-center justify-between sticky top-0 z-30">
     <div class="flex items-center space-x-2">
-      <i class="fa-solid fa-paintbrush text-amber-300 text-xl"></i>
-      <h1 class="font-black text-lg tracking-wide">妙筆神猜 <span class="text-xs bg-indigo-700 text-amber-200 px-1.5 py-0.5 rounded ml-1 font-normal">Live</span></h1>
+      <i class="fa-solid fa-paintbrush text-amber-300 text-lg"></i>
+      <h1 class="font-black text-base tracking-wide">妙筆神猜</h1>
+      <span id="round-indicator" class="hidden text-xs bg-indigo-800 text-amber-300 px-2 py-0.5 rounded-full font-bold ml-1">第 1/5 回合</span>
     </div>
-    <div id="room-badge" class="hidden text-xs bg-indigo-700 border border-indigo-500 rounded-full px-3 py-1 flex items-center space-x-1.5">
-      <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-      <span>房號: <b id="display-room-code" class="text-amber-300 tracking-wider">----</b></span>
+
+    <div class="flex items-center space-x-2">
+      <!-- 規則說明跳轉按鈕 -->
+      <a href="rules.html" target="_blank" class="text-xs bg-indigo-500 hover:bg-indigo-400 text-white px-2.5 py-1 rounded-lg font-bold flex items-center space-x-1 transition shadow-sm">
+        <i class="fa-solid fa-circle-question"></i>
+        <span>規則說明</span>
+      </a>
+
+      <div id="room-badge" class="hidden text-xs bg-indigo-700 border border-indigo-500 rounded-full px-2.5 py-1 flex items-center space-x-1">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span>房號: <b id="display-room-code" class="text-amber-300 font-mono">----</b></span>
+      </div>
     </div>
   </header>
 
   <!-- 主內容容器 -->
-  <main class="flex-1 max-w-4xl w-full mx-auto p-3 sm:p-4 flex flex-col">
+  <main class="flex-1 max-w-4xl w-full mx-auto p-2 sm:p-4 flex flex-col">
 
     <!-- 1. 大廳 / 加入房間畫面 -->
-    <section id="view-lobby" class="flex-1 flex flex-col justify-center items-center py-6">
-      <div class="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200/80 p-6 space-y-5">
+    <section id="view-lobby" class="flex-1 flex flex-col justify-center items-center py-4">
+      <div class="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200/80 p-5 space-y-4">
+        
         <div class="text-center space-y-1">
-          <div class="inline-flex p-3 bg-indigo-50 text-indigo-600 rounded-full mb-2">
-            <i class="fa-solid fa-users-viewfinder text-3xl"></i>
+          <div class="inline-flex p-3 bg-indigo-50 text-indigo-600 rounded-full mb-1">
+            <i class="fa-solid fa-users-viewfinder text-2xl"></i>
           </div>
-          <h2 class="text-2xl font-bold text-slate-800">加入遊戲大廳</h2>
-          <p class="text-xs text-slate-500">同時繪圖、搶答互猜！支援多支手機同步互動</p>
+          <h2 class="text-xl font-bold text-slate-800">加入遊戲大廳</h2>
+          <p class="text-xs text-slate-500">支援多支手機同步連線，總共 5 回合激戰！</p>
         </div>
 
         <div>
@@ -69,40 +67,75 @@
           </div>
         </div>
 
+        <!-- 頁籤切換 -->
         <div class="flex border-b border-slate-200 text-sm font-semibold">
           <button id="tab-join" class="flex-1 pb-2 border-b-2 border-indigo-600 text-indigo-600 transition" onclick="switchLobbyTab('join')">加入已有房間</button>
           <button id="tab-create" class="flex-1 pb-2 border-b-2 border-transparent text-slate-400 hover:text-slate-600 transition" onclick="switchLobbyTab('create')">創建新房間</button>
         </div>
 
-        <div id="panel-join" class="space-y-4">
+        <!-- 加入房間面板 -->
+        <div id="panel-join" class="space-y-3">
           <div>
             <label class="block text-xs font-bold text-slate-600 mb-1">房間代碼 (4碼)</label>
             <input type="text" id="input-room-code" maxlength="4" placeholder="例如：K9XP" class="w-full uppercase text-center font-mono font-bold tracking-widest py-2 border rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-lg">
           </div>
-          <button onclick="handleJoinRoom()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 active:scale-95 transition flex items-center justify-center space-x-2">
+          <button onclick="handleJoinRoom()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 active:scale-95 transition flex items-center justify-center space-x-1.5 text-sm">
             <i class="fa-solid fa-arrow-right-to-bracket"></i>
             <span>進入房間</span>
           </button>
         </div>
 
-        <div id="panel-create" class="space-y-4 hidden">
-          <div class="bg-indigo-50 text-indigo-800 text-xs p-3 rounded-xl flex items-start space-x-2">
-            <i class="fa-solid fa-circle-info mt-0.5"></i>
-            <span>創建後系統將自動生成專屬房號與 QR Code，朋友掃碼即可秒速加入！</span>
+        <!-- 創建房間面板 (含難度勾選) -->
+        <div id="panel-create" class="space-y-3 hidden">
+          <!-- 難度勾選區 -->
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
+            <div class="flex justify-between items-center">
+              <span class="text-xs font-bold text-slate-700">難度等級勾選 (最多4個，自動分配5回合)</span>
+              <span class="text-[10px] text-indigo-600 font-semibold" id="level-preview-badge">循序漸進</span>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <label class="flex items-center space-x-1.5 bg-white p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                <input type="checkbox" name="level-choice" value="1" checked onchange="updateLevelSchedulePreview()" class="rounded text-indigo-600 focus:ring-indigo-500">
+                <span>Lv 1 (具體物品)</span>
+              </label>
+              <label class="flex items-center space-x-1.5 bg-white p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                <input type="checkbox" name="level-choice" value="2" checked onchange="updateLevelSchedulePreview()" class="rounded text-indigo-600 focus:ring-indigo-500">
+                <span>Lv 2 (肢體動作)</span>
+              </label>
+              <label class="flex items-center space-x-1.5 bg-white p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                <input type="checkbox" name="level-choice" value="3" checked onchange="updateLevelSchedulePreview()" class="rounded text-indigo-600 focus:ring-indigo-500">
+                <span>Lv 3 (情境職業)</span>
+              </label>
+              <label class="flex items-center space-x-1.5 bg-white p-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                <input type="checkbox" name="level-choice" value="4" checked onchange="updateLevelSchedulePreview()" class="rounded text-indigo-600 focus:ring-indigo-500">
+                <span>Lv 4 (抽象哲學)</span>
+              </label>
+            </div>
+
+            <!-- 5回合排程即時預覽 -->
+            <div class="text-[11px] text-slate-500 pt-1 border-t border-slate-200/60 flex items-center justify-between">
+              <span>預計5回合難度：</span>
+              <span id="level-plan-text" class="font-mono font-bold text-indigo-600">Lv 1 ➔ 1 ➔ 2 ➔ 3 ➔ 4</span>
+            </div>
           </div>
-          <button onclick="handleCreateRoom()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 active:scale-95 transition flex items-center justify-center space-x-2">
+
+          <button onclick="handleCreateRoom()" class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-200 active:scale-95 transition flex items-center justify-center space-x-1.5 text-sm">
             <i class="fa-solid fa-plus-circle"></i>
             <span>建立房間</span>
           </button>
         </div>
 
-        <div class="text-center pt-2">
-          <button onclick="enableDemoMode()" class="text-xs text-indigo-500 underline hover:text-indigo-700">想先單人體驗？啟動單機模擬模式</button>
+        <div class="text-center pt-1 flex justify-between items-center text-xs">
+          <a href="rules.html" target="_blank" class="text-indigo-600 font-semibold hover:underline">
+            <i class="fa-solid fa-book-open mr-1"></i>看詳細規則
+          </a>
+          <button onclick="enableDemoMode()" class="text-slate-400 underline hover:text-slate-600">單機模擬體驗</button>
         </div>
       </div>
     </section>
 
-    <!-- 2. 等待室畫面 -->
+    <!-- 2. 等待室畫面 (Wait Room) -->
     <section id="view-waiting" class="hidden flex-1 flex flex-col justify-center items-center py-4">
       <div class="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200/80 p-5 space-y-4">
         
@@ -113,10 +146,10 @@
           </div>
 
           <div class="flex flex-col items-center justify-center pt-1">
-            <div id="qrcode-container" class="bg-white p-2.5 rounded-xl shadow-sm border border-slate-200 inline-block"></div>
+            <div id="qrcode-container" class="bg-white p-2 rounded-xl shadow-sm border border-slate-200 inline-block"></div>
             <span class="text-[11px] text-slate-500 mt-2 flex items-center space-x-1">
               <i class="fa-solid fa-camera"></i>
-              <span>請現場朋友用手機相機掃碼加入</span>
+              <span>現場朋友相機掃碼秒速加入</span>
             </span>
           </div>
 
@@ -129,15 +162,15 @@
         <div>
           <div class="flex justify-between items-center mb-2 px-1">
             <span class="text-xs font-bold text-slate-600">已加入玩家 (<span id="player-count">1</span>/6)</span>
-            <span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">需至少 2 位玩家</span>
+            <span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">需至少 2 位</span>
           </div>
-          <div id="lobby-player-list" class="space-y-2 max-h-48 overflow-y-auto pr-1"></div>
+          <div id="lobby-player-list" class="space-y-1.5 max-h-36 overflow-y-auto pr-1"></div>
         </div>
 
-        <div id="host-controls" class="pt-2">
-          <button id="btn-start-game" onclick="handleStartGame()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 active:scale-95 transition flex items-center justify-center space-x-2">
+        <div id="host-controls" class="pt-1">
+          <button id="btn-start-game" onclick="handleStartGame()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 active:scale-95 transition flex items-center justify-center space-x-2 text-sm">
             <i class="fa-solid fa-play"></i>
-            <span>開始遊戲</span>
+            <span>開始第 1 回合 (共5回合)</span>
           </button>
         </div>
         <div id="guest-waiting-msg" class="hidden text-center text-xs text-slate-400 py-2">
@@ -146,103 +179,156 @@
       </div>
     </section>
 
-    <!-- 3. 遊戲進行畫面 -->
-    <section id="view-game" class="hidden flex-1 flex flex-col space-y-3">
-      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3 flex flex-wrap items-center justify-between gap-2">
-        <div class="flex items-center space-x-3">
-          <div class="bg-amber-100 border border-amber-300 text-amber-900 px-3 py-1.5 rounded-lg text-center">
-            <div class="text-[10px] font-bold text-amber-700 uppercase">我的題目</div>
-            <div id="my-task-text" class="text-base font-black">---</div>
+    <!-- 3. 遊戲進行畫面 (Game Room: 手機直向特化版) -->
+    <section id="view-game" class="hidden flex-1 flex flex-col space-y-2">
+      
+      <!-- 頂部資訊列：我的題目、等級、搶速度按鈕 -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-2.5 flex items-center justify-between gap-2">
+        <div class="flex items-center space-x-2">
+          <div class="bg-amber-100 border border-amber-300 text-amber-900 px-2.5 py-1 rounded-lg text-center">
+            <div class="text-[9px] font-bold text-amber-700 uppercase">我的題目</div>
+            <div id="my-task-text" class="text-sm font-black tracking-tight leading-none mt-0.5">---</div>
           </div>
-          <div class="text-xs text-slate-500">
-            <div>分類：<span id="card-category" class="font-bold text-slate-700">日常用品</span></div>
-            <div class="text-[10px] text-slate-400">邊畫邊看別人畫什麼，搶答拿分！</div>
+          <div class="text-[11px] text-slate-500">
+            <div>難度：<span id="game-current-level" class="font-bold text-indigo-600">Lv 1</span></div>
+            <div>主題：<span id="card-category" class="font-bold text-slate-700">日常用品</span></div>
           </div>
         </div>
 
-        <button id="btn-finish-drawing" onclick="handleFinishDrawing()" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-xs shadow-md shadow-emerald-100 flex items-center space-x-1.5 active:scale-95 transition">
+        <button id="btn-finish-drawing" onclick="handleFinishDrawing()" class="px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-xs shadow-md shadow-emerald-100 flex items-center space-x-1 active:scale-95 transition">
           <i class="fa-solid fa-flag-checkered"></i>
-          <span>我畫完了！(搶速度分)</span>
+          <span>畫完了(搶分)</span>
         </button>
       </div>
 
-      <div class="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3 min-h-[420px]">
-        <div class="md:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 p-3 flex flex-col">
-          <div class="flex justify-between items-center mb-2">
-            <span class="text-xs font-bold text-slate-700 flex items-center space-x-1.5">
-              <i class="fa-solid fa-pen-nib text-indigo-500"></i>
-              <span>我的畫布</span>
-            </span>
-            <div class="flex items-center space-x-2">
-              <button onclick="clearMyCanvas()" class="px-2 py-1 text-[11px] bg-slate-100 hover:bg-slate-200 text-slate-600 rounded flex items-center space-x-1 transition">
-                <i class="fa-solid fa-rotate-left"></i>
-                <span>清空</span>
-              </button>
-            </div>
-          </div>
-
-          <div class="flex-1 w-full relative bg-slate-50 rounded-lg border-2 border-dashed border-slate-200 overflow-hidden flex items-center justify-center">
-            <canvas id="myCanvas" class="absolute inset-0 w-full h-full touch-none cursor-crosshair bg-white"></canvas>
-          </div>
+      <!-- 上方大區域：我的大畫布 -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-2 flex flex-col flex-1 min-h-[220px]">
+        <div class="flex justify-between items-center mb-1 px-1">
+          <span class="text-xs font-bold text-slate-700 flex items-center space-x-1">
+            <i class="fa-solid fa-pen-nib text-indigo-500"></i>
+            <span>我的畫布 (作畫區)</span>
+          </span>
+          <button onclick="clearMyCanvas()" class="px-2 py-0.5 text-[11px] bg-slate-100 hover:bg-slate-200 text-slate-600 rounded flex items-center space-x-1 transition">
+            <i class="fa-solid fa-rotate-left"></i>
+            <span>清空</span>
+          </button>
         </div>
 
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3 flex flex-col">
-          <div class="flex justify-between items-center mb-2">
-            <span class="text-xs font-bold text-slate-700 flex items-center space-x-1">
-              <i class="fa-solid fa-eye text-emerald-500"></i>
-              <span>觀看對手並搶猜</span>
-            </span>
-            <span class="text-[10px] text-slate-400">點擊猜測</span>
-          </div>
-
-          <div id="opponents-container" class="flex-1 overflow-y-auto space-y-3 pr-1"></div>
+        <div class="flex-1 w-full relative bg-slate-50 rounded-lg border-2 border-dashed border-slate-200 overflow-hidden">
+          <canvas id="myCanvas" class="absolute inset-0 w-full h-full touch-none cursor-crosshair bg-white"></canvas>
         </div>
       </div>
 
-      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-3">
-        <div class="text-[11px] font-bold text-slate-500 mb-1.5 flex items-center space-x-1">
-          <i class="fa-solid fa-list-ol text-indigo-500"></i>
-          <span>本輪所有題目卡候選清單：</span>
+      <!-- 下方水平捲動區域：其餘玩家的小畫布 (可點擊放大並猜題) -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-2.5">
+        <div class="flex justify-between items-center mb-1.5 px-0.5">
+          <span class="text-xs font-bold text-slate-700 flex items-center space-x-1">
+            <i class="fa-solid fa-users text-emerald-500"></i>
+            <span>對手畫布 (點擊可放大並猜題)</span>
+          </span>
+          <span class="text-[10px] text-indigo-500 font-semibold">點擊放大檢視</span>
         </div>
-        <div id="theme-word-list" class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-1.5 text-xs"></div>
+
+        <!-- 水平滑動列 -->
+        <div id="opponents-container" class="flex space-x-2.5 overflow-x-auto pb-1 pt-0.5">
+          <!-- 動態生成各對手小卡 -->
+        </div>
+      </div>
+
+      <!-- 底部題目池參考列表 (1 ~ 7 號) -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-2">
+        <div class="text-[10px] font-bold text-slate-400 mb-1 flex items-center space-x-1">
+          <i class="fa-solid fa-list-ol text-indigo-500"></i>
+          <span>本輪 7 道題目候選：</span>
+        </div>
+        <div id="theme-word-list" class="grid grid-cols-4 sm:grid-cols-7 gap-1 text-[11px]"></div>
       </div>
     </section>
 
-    <!-- 4. 結算畫面 -->
-    <section id="view-result" class="hidden flex-1 flex flex-col justify-center items-center py-6">
-      <div class="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-6 space-y-5 text-center">
+    <!-- 4. 單回合結算畫面 (Round Result) -->
+    <section id="view-round-result" class="hidden flex-1 flex flex-col justify-center items-center py-4">
+      <div class="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-5 space-y-4 text-center">
+        <div class="inline-flex p-3 bg-indigo-50 text-indigo-600 rounded-full">
+          <i class="fa-solid fa-star text-3xl text-amber-500"></i>
+        </div>
+        <div>
+          <h2 class="text-xl font-black text-slate-800" id="round-result-title">第 1 回合結束</h2>
+          <p class="text-xs text-slate-500">本回合各玩家得分與累積總分</p>
+        </div>
+
+        <div id="round-scoreboard-list" class="space-y-1.5 text-left text-xs max-h-56 overflow-y-auto pr-1"></div>
+
+        <div id="host-next-round-btn-container" class="pt-2">
+          <button id="btn-next-round" onclick="handleNextRound()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 active:scale-95 transition text-sm">
+            進入下一回合
+          </button>
+        </div>
+        <div id="guest-next-round-msg" class="hidden text-center text-xs text-slate-400 py-1">
+          <i class="fa-solid fa-spinner animate-spin mr-1"></i> 等待房主進入下一回合...
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. 5回合最終大總結算畫面 (Final Game Over) -->
+    <section id="view-result" class="hidden flex-1 flex flex-col justify-center items-center py-4">
+      <div class="w-full max-w-md bg-white rounded-2xl shadow-xl border border-slate-200 p-6 space-y-4 text-center">
         <div class="inline-flex p-4 bg-amber-50 text-amber-500 rounded-full">
           <i class="fa-solid fa-trophy text-4xl"></i>
         </div>
         <div>
-          <h2 class="text-2xl font-black text-slate-800">遊戲結算</h2>
-          <p class="text-xs text-slate-500">誰才是觀察力與畫工最強的神猜？</p>
+          <h2 class="text-2xl font-black text-slate-800">5 回合大總結算</h2>
+          <p class="text-xs text-slate-500">究竟誰才是觀察力與畫工最強的終極神猜？</p>
         </div>
 
-        <div id="scoreboard-list" class="space-y-2 text-left"></div>
+        <div id="final-scoreboard-list" class="space-y-2 text-left"></div>
 
-        <button onclick="backToLobby()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 active:scale-95 transition">
-          返回大廳再玩一局
+        <button onclick="backToLobby()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 active:scale-95 transition text-sm">
+          回到大廳重新開局
         </button>
       </div>
     </section>
+
   </main>
 
-  <!-- 猜題 Modal 彈窗 -->
-  <div id="modal-guess" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-5 space-y-4">
-      <div class="text-center">
-        <span class="text-xs text-indigo-600 font-bold uppercase">Guess</span>
-        <h3 class="text-lg font-bold text-slate-800">你猜 <span id="modal-target-name" class="text-indigo-600">--</span> 畫的是什麼？</h3>
+  <!-- 點擊對手畫布「放大檢視 + 猜題」Modal 彈窗 -->
+  <div id="modal-inspect" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-4 space-y-3">
+      
+      <div class="flex justify-between items-center border-b pb-2">
+        <div>
+          <span class="text-[10px] text-indigo-600 font-bold uppercase">放大檢視與猜題</span>
+          <h3 class="text-sm font-bold text-slate-800">正在觀察：<span id="inspect-target-name" class="text-indigo-600">--</span></h3>
+        </div>
+        <button onclick="closeInspectModal()" class="w-7 h-7 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
       </div>
-      <div id="modal-options-grid" class="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto pr-1 text-xs"></div>
-      <button onclick="closeGuessModal()" class="w-full py-2 bg-slate-100 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-200 transition">
-        取消
-      </button>
+
+      <!-- 放大版對手畫布 -->
+      <div class="w-full h-48 bg-slate-50 border border-slate-200 rounded-xl overflow-hidden relative">
+        <canvas id="inspect-big-canvas" class="w-full h-full bg-white"></canvas>
+      </div>
+
+      <!-- 猜題選項 (1~7 號詞彙按鈕) -->
+      <div>
+        <div class="text-[11px] font-bold text-slate-600 mb-1 flex items-center space-x-1">
+          <i class="fa-solid fa-lightbulb text-amber-500"></i>
+          <span>你猜他畫的是什麼？(點擊搶答)</span>
+        </div>
+        <div id="inspect-options-grid" class="grid grid-cols-2 gap-1.5 max-h-40 overflow-y-auto pr-1 text-xs"></div>
+      </div>
+
+      <div id="inspect-already-guessed" class="hidden text-center text-xs font-bold text-slate-400 py-1 bg-slate-100 rounded-lg">
+        ✓ 你已經對此玩家進行過猜測
+      </div>
+
     </div>
   </div>
 
   <script>
+    /* ========================================================
+       1. Firebase 設定
+       ======================================================== */
     const firebaseConfig = {
       apiKey: "AIzaSyDWiomRZw-XAgzWwHwGY7GhmEzZWnxmP38",
       authDomain: "pictomania-a72e3.firebaseapp.com",
@@ -263,30 +349,30 @@
       }
       db = firebase.database();
     } catch (e) {
-      console.warn("Firebase 初始化異常:", e);
+      console.warn("Firebase 未初始化，可切換單機模式:", e);
     }
 
-    // 備援題庫 (若 words.js 載入失敗時使用)
     const FALLBACK_WORDS = [
-      {
-        category: "日常生活用品",
-        words: ["電風扇", "吹風機", "吸塵器", "檯燈", "微波爐", "熱水壺", "洗衣機"]
-      }
+      { level: 1, category: "日常生活用品", words: ["電風扇", "吹風機", "吸塵器", "檯燈", "微波爐", "熱水壺", "洗衣機"] }
     ];
 
+    /* 全域狀態 */
     let myPlayerId = 'p_' + Math.random().toString(36).substr(2, 6);
     let myNickname = '';
     let currentRoomCode = null;
     let isHost = false;
+    let currentRoundIndex = 0; // 0 ~ 4 (共5回合)
+    let roundSchedules = [1, 1, 2, 3, 4]; // 預設循序漸進
     let currentTheme = null;
     let myAssignedWord = null;
     let myAssignedWordIndex = -1;
-    let guessTargetPlayerId = null;
-    let qrCodeInstance = null;
+    let inspectingPlayerId = null;
 
     let localPlayers = {};
     let unsubRoom = null;
+    let currentRoomData = null;
 
+    /* 畫布控制與節流 */
     let canvas, ctx;
     let isDrawing = false;
     let strokeBuffer = [];
@@ -296,6 +382,7 @@
     window.addEventListener('DOMContentLoaded', () => {
       initCanvas();
       checkUrlParams();
+      updateLevelSchedulePreview();
     });
 
     function checkUrlParams() {
@@ -327,16 +414,61 @@
       }
     }
 
+    /* ========================================================
+       2. 難度勾選與 5 回合循序漸進演算法
+       ======================================================== */
+    function getSelectedLevels() {
+      const checkboxes = document.querySelectorAll('input[name="level-choice"]:checked');
+      const levels = Array.from(checkboxes).map(cb => parseInt(cb.value)).sort((a, b) => a - b);
+      return levels.length > 0 ? levels : [1]; // 至少保留 Level 1
+    }
+
+    // 計算 5 回合排程：簡單場次佔多數，由易到難
+    function calculate5RoundsSchedule(levels) {
+      const n = levels.length;
+      if (n === 1) {
+        return [levels[0], levels[0], levels[0], levels[0], levels[0]];
+      } else if (n === 2) {
+        // 例 [2, 3] -> [2, 2, 2, 3, 3] (簡單佔3場)
+        return [levels[0], levels[0], levels[0], levels[1], levels[1]];
+      } else if (n === 3) {
+        // 例 [1, 2, 4] -> [1, 1, 2, 2, 4]
+        return [levels[0], levels[0], levels[1], levels[1], levels[2]];
+      } else if (n === 4) {
+        // 例 [1, 2, 3, 4] -> [1, 1, 2, 3, 4] (Lv1 佔2場)
+        return [levels[0], levels[0], levels[1], levels[2], levels[3]];
+      }
+      return [1, 1, 2, 3, 4];
+    }
+
+    function updateLevelSchedulePreview() {
+      const selected = getSelectedLevels();
+      const plan = calculate5RoundsSchedule(selected);
+      roundSchedules = plan;
+      const textEl = document.getElementById('level-plan-text');
+      if (textEl) {
+        textEl.innerText = plan.map(l => `Lv ${l}`).join(' ➔ ');
+      }
+    }
+
+    /* ========================================================
+       3. 大廳與房間處理
+       ======================================================== */
+    function getNickname() {
+      const val = document.getElementById('input-nickname').value.trim();
+      return val || "玩家" + Math.floor(Math.random() * 900 + 100);
+    }
+
     function generateQrCode(roomCode) {
       const container = document.getElementById('qrcode-container');
       container.innerHTML = "";
       const cleanUrl = window.location.origin + window.location.pathname;
       const joinUrl = `${cleanUrl}?room=${roomCode}`;
 
-      qrCodeInstance = new QRCode(container, {
+      new QRCode(container, {
         text: joinUrl,
-        width: 140,
-        height: 140,
+        width: 130,
+        height: 130,
         colorDark: "#1e1b4b",
         colorLight: "#ffffff",
         correctLevel: QRCode.CorrectLevel.M
@@ -346,7 +478,6 @@
     function copyInviteLink() {
       const cleanUrl = window.location.origin + window.location.pathname;
       const joinUrl = `${cleanUrl}?room=${currentRoomCode}`;
-      
       navigator.clipboard.writeText(joinUrl).then(() => {
         const textSpan = document.getElementById('copy-btn-text');
         textSpan.innerText = "已複製連結！";
@@ -356,16 +487,12 @@
       });
     }
 
-    function getNickname() {
-      const val = document.getElementById('input-nickname').value.trim();
-      return val || "玩家" + Math.floor(Math.random() * 900 + 100);
-    }
-
     function handleCreateRoom() {
       myNickname = getNickname();
       isHost = true;
       currentRoomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
-      
+      updateLevelSchedulePreview();
+
       enterWaitingRoom(currentRoomCode);
 
       if (db && !isDemoMode) {
@@ -374,12 +501,16 @@
           code: currentRoomCode,
           hostId: myPlayerId,
           status: 'waiting',
+          currentRound: 0,
+          totalRounds: 5,
+          roundSchedules: roundSchedules,
           createdAt: firebase.database.ServerValue.TIMESTAMP,
           players: {
             [myPlayerId]: {
               id: myPlayerId,
               name: myNickname,
-              score: 0,
+              totalScore: 0,
+              roundScore: 0,
               isHost: true,
               isFinishedDrawing: false
             }
@@ -411,7 +542,8 @@
           roomRef.child('players/' + myPlayerId).set({
             id: myPlayerId,
             name: myNickname,
-            score: 0,
+            totalScore: 0,
+            roundScore: 0,
             isHost: false,
             isFinishedDrawing: false
           });
@@ -428,7 +560,6 @@
       document.getElementById('room-badge').classList.remove('hidden');
       document.getElementById('display-room-code').innerText = code;
       document.getElementById('wait-room-code').innerText = code;
-
       generateQrCode(code);
 
       if (isHost) {
@@ -445,20 +576,22 @@
       unsubRoom = roomRef.on('value', snapshot => {
         const data = snapshot.val();
         if (!data) return;
-
+        currentRoomData = data;
         localPlayers = data.players || {};
+        currentRoundIndex = data.currentRound || 0;
+        roundSchedules = data.roundSchedules || [1, 1, 2, 3, 4];
+
         renderLobbyPlayers(localPlayers);
 
-        if (data.status === 'playing' && document.getElementById('view-game').classList.contains('hidden')) {
-          setupGameScreen(data);
-        }
-
+        // 監聽狀態切換
         if (data.status === 'playing') {
+          setupGameScreen(data);
           syncOpponentCanvases(data.strokes || {});
-        }
-
-        if (data.status === 'finished' && document.getElementById('view-result').classList.contains('hidden')) {
-          showResults(data.players || {});
+          updateInspectCanvasIfOpen(data.strokes || {});
+        } else if (data.status === 'round_finished') {
+          showRoundResults(data);
+        } else if (data.status === 'game_over') {
+          showFinalResults(data.players || {});
         }
       });
     }
@@ -472,10 +605,10 @@
       playerIds.forEach(id => {
         const p = players[id];
         const item = document.createElement('div');
-        item.className = "flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200/60 rounded-xl text-xs";
+        item.className = "flex items-center justify-between p-2 bg-slate-50 border border-slate-200/60 rounded-xl text-xs";
         item.innerHTML = `
           <div class="flex items-center space-x-2">
-            <div class="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center">
+            <div class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-[11px]">
               ${p.name.charAt(0)}
             </div>
             <span class="font-bold text-slate-700">${p.name} ${id === myPlayerId ? '<span class="text-[10px] text-indigo-500">(我)</span>' : ''}</span>
@@ -486,17 +619,27 @@
       });
     }
 
+    /* ========================================================
+       4. 開始遊戲與回合管理 (五回合制)
+       ======================================================== */
     function handleStartGame() {
       const playerKeys = Object.keys(localPlayers);
       if (playerKeys.length < 2 && !isDemoMode) {
         alert("妙筆神猜需要至少 2 人才能開始喔！");
         return;
       }
+      startRound(0);
+    }
 
-      // 從 words.js 載入的題庫挑選，如無則用 fallback
-      const pools = (typeof WORD_POOLS !== 'undefined') ? WORD_POOLS : FALLBACK_WORDS;
-      const pool = pools[Math.floor(Math.random() * pools.length)];
+    function startRound(rIndex) {
+      currentRoundIndex = rIndex;
+      const targetLevel = roundSchedules[rIndex] || 1;
       
+      const pools = (typeof WORD_POOLS !== 'undefined') ? WORD_POOLS : FALLBACK_WORDS;
+      const filtered = pools.filter(p => p.level === targetLevel);
+      const pool = (filtered.length > 0) ? filtered[Math.floor(Math.random() * filtered.length)] : pools[0];
+
+      const playerKeys = Object.keys(localPlayers);
       const shuffledIndices = [0, 1, 2, 3, 4, 5, 6].sort(() => 0.5 - Math.random());
       const playerAssignments = {};
 
@@ -508,51 +651,89 @@
         };
       });
 
+      // 重置每位玩家本回合的狀態
+      const updatedPlayers = {};
+      playerKeys.forEach(pId => {
+        updatedPlayers[pId] = {
+          ...localPlayers[pId],
+          isFinishedDrawing: false,
+          finishRank: 0,
+          roundScore: 0
+        };
+      });
+
       if (db && !isDemoMode) {
         db.ref('rooms/' + currentRoomCode).update({
           status: 'playing',
+          currentRound: rIndex,
+          currentLevel: targetLevel,
           currentTheme: pool,
           assignments: playerAssignments,
           strokes: {},
-          guesses: {}
+          guesses: {},
+          finishCounter: 0,
+          players: updatedPlayers
         });
       } else {
         setupGameScreen({
+          currentRound: rIndex,
+          currentLevel: targetLevel,
           currentTheme: pool,
-          assignments: { [myPlayerId]: { wordIndex: 2, word: pool.words[2] } },
-          players: localPlayers
+          assignments: { [myPlayerId]: { wordIndex: 1, word: pool.words[1] } },
+          players: updatedPlayers
         });
       }
     }
 
     function setupGameScreen(roomData) {
       document.getElementById('view-waiting').classList.add('hidden');
+      document.getElementById('view-round-result').classList.add('hidden');
       document.getElementById('view-game').classList.remove('hidden');
 
+      // 更新頂部資訊
+      const roundIdx = roomData.currentRound || 0;
+      const roundBadge = document.getElementById('round-indicator');
+      roundBadge.classList.remove('hidden');
+      roundBadge.innerText = `第 ${roundIdx + 1}/5 回合`;
+
       currentTheme = roomData.currentTheme;
+      document.getElementById('game-current-level').innerText = `Lv ${roomData.currentLevel || 1}`;
       document.getElementById('card-category').innerText = currentTheme.category;
 
+      // 渲染題目池 1~7 號
       const listEl = document.getElementById('theme-word-list');
       listEl.innerHTML = '';
       currentTheme.words.forEach((w, i) => {
         const item = document.createElement('div');
-        item.className = "bg-slate-50 border border-slate-200 p-2 rounded-lg text-center";
-        item.innerHTML = `<span class="font-bold text-indigo-600 block text-[10px]">#${i+1}</span><span class="font-bold text-slate-700">${w}</span>`;
+        item.className = "bg-slate-50 border border-slate-200 p-1 rounded text-center";
+        item.innerHTML = `<span class="font-bold text-indigo-600 block text-[9px]">#${i+1}</span><span class="font-bold text-slate-700">${w}</span>`;
         listEl.appendChild(item);
       });
 
-      const myTask = roomData.assignments[myPlayerId];
+      // 取得我的題目
+      const myTask = roomData.assignments ? roomData.assignments[myPlayerId] : null;
       if (myTask) {
         myAssignedWord = myTask.word;
         myAssignedWordIndex = myTask.wordIndex;
         document.getElementById('my-task-text').innerText = `#${myTask.wordIndex + 1} ${myTask.word}`;
       }
 
-      buildOpponentsView(roomData.players || {});
+      // 重置作畫完成按鈕
+      const finishBtn = document.getElementById('btn-finish-drawing');
+      finishBtn.disabled = false;
+      finishBtn.className = "px-3 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-xs shadow-md shadow-emerald-100 flex items-center space-x-1 active:scale-95 transition";
+      finishBtn.innerHTML = `<i class="fa-solid fa-flag-checkered"></i><span>畫完了(搶分)</span>`;
+
+      // 清空我自己的大畫布
+      clearMyCanvas(false);
+
+      // 構建下方對手水平小畫布
+      buildHorizontalOpponents(roomData.players || {});
       resizeCanvas();
     }
 
-    function buildOpponentsView(players) {
+    /* 構建下方對手水平小畫布列 */
+    function buildHorizontalOpponents(players) {
       const container = document.getElementById('opponents-container');
       container.innerHTML = '';
 
@@ -561,25 +742,119 @@
 
         const p = players[pId];
         const card = document.createElement('div');
-        card.className = "border border-slate-200 rounded-xl p-2 bg-slate-50 flex flex-col space-y-1.5";
+        card.className = "flex-shrink-0 w-32 bg-slate-50 border border-slate-200 rounded-xl p-2 cursor-pointer hover:border-indigo-400 hover:shadow-md transition active:scale-95 flex flex-col items-center";
         card.id = `opp-card-${pId}`;
+        card.onclick = () => openInspectModal(pId, p.name);
+
         card.innerHTML = `
-          <div class="flex justify-between items-center text-xs">
-            <span class="font-bold text-slate-700">${p.name}</span>
-            <span id="opp-finish-status-${pId}" class="text-[10px] text-slate-400">繪畫中...</span>
+          <div class="w-full flex justify-between items-center text-[10px] mb-1 font-bold">
+            <span class="truncate text-slate-700">${p.name}</span>
+            <span id="opp-status-${pId}" class="text-slate-400">畫中..</span>
           </div>
-          <div class="w-full h-28 bg-white border border-slate-200 rounded-lg overflow-hidden relative">
+          <div class="w-28 h-20 bg-white border border-slate-200 rounded-lg overflow-hidden relative shadow-inner">
             <canvas id="opp-canvas-${pId}" class="w-full h-full"></canvas>
           </div>
-          <button id="btn-guess-${pId}" onclick="openGuessModal('${pId}', '${p.name}')" class="w-full py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg font-bold text-xs border border-indigo-200 transition flex items-center justify-center space-x-1">
-            <i class="fa-solid fa-lightbulb"></i>
-            <span>猜猜他畫什麼</span>
-          </button>
+          <div class="w-full text-center mt-1 text-[10px] text-indigo-600 font-bold bg-indigo-50/80 rounded py-0.5">
+            點擊放大/猜題
+          </div>
         `;
         container.appendChild(card);
       });
     }
 
+    /* ========================================================
+       5. 點擊對手畫布「放大檢視與猜題」Modal
+       ======================================================== */
+    function openInspectModal(targetPId, targetName) {
+      inspectingPlayerId = targetPId;
+      document.getElementById('inspect-target-name').innerText = targetName;
+
+      // 渲染 1~7 號猜題按鈕
+      const grid = document.getElementById('inspect-options-grid');
+      grid.innerHTML = '';
+
+      // 檢查是否已經猜過該玩家
+      const guesses = currentRoomData ? (currentRoomData.guesses || {}) : {};
+      const guessKey = `${myPlayerId}_to_${targetPId}`;
+      const hasGuessed = !!guesses[guessKey];
+
+      const alreadyGuessedDiv = document.getElementById('inspect-already-guessed');
+      if (hasGuessed) {
+        alreadyGuessedDiv.classList.remove('hidden');
+      } else {
+        alreadyGuessedDiv.classList.add('hidden');
+      }
+
+      currentTheme.words.forEach((w, idx) => {
+        const btn = document.createElement('button');
+        btn.disabled = hasGuessed;
+        btn.className = `p-2 text-left rounded-xl font-bold flex justify-between items-center transition border ${
+          hasGuessed ? 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed' : 'bg-slate-50 hover:bg-indigo-50 border-slate-200 hover:border-indigo-300 text-slate-700'
+        }`;
+        btn.innerHTML = `<span>#${idx+1} ${w}</span><i class="fa-solid fa-chevron-right text-[10px] text-slate-300"></i>`;
+        btn.onclick = () => submitGuess(targetPId, idx);
+        grid.appendChild(btn);
+      });
+
+      document.getElementById('modal-inspect').classList.remove('hidden');
+
+      // 即時複製小畫布到大畫布
+      redrawInspectCanvas();
+    }
+
+    function closeInspectModal() {
+      inspectingPlayerId = null;
+      document.getElementById('modal-inspect').classList.add('hidden');
+    }
+
+    function redrawInspectModalCanvas(targetPId, allStrokes) {
+      if (inspectingPlayerId !== targetPId) return;
+      const bigCanvas = document.getElementById('inspect-big-canvas');
+      if (!bigCanvas) return;
+      const bCtx = bigCanvas.getContext('2d');
+
+      if (bigCanvas.width !== bigCanvas.clientWidth) {
+        bigCanvas.width = bigCanvas.clientWidth;
+        bigCanvas.height = bigCanvas.clientHeight;
+      }
+
+      bCtx.clearRect(0, 0, bigCanvas.width, bigCanvas.height);
+      bCtx.lineWidth = 3;
+      bCtx.lineCap = 'round';
+      bCtx.strokeStyle = '#1e1b4b';
+
+      const strokeBatches = allStrokes[targetPId] || {};
+      Object.keys(strokeBatches).forEach(bKey => {
+        const batch = strokeBatches[bKey];
+        if (!batch.pts) return;
+        batch.pts.forEach(pt => {
+          const rx = (pt.x / 1000) * bigCanvas.width;
+          const ry = (pt.y / 1000) * bigCanvas.height;
+          if (pt.isNew) {
+            bCtx.beginPath();
+            bCtx.moveTo(rx, ry);
+          } else {
+            bCtx.lineTo(rx, ry);
+            bCtx.stroke();
+          }
+        });
+      });
+    }
+
+    function updateInspectCanvasIfOpen(allStrokes) {
+      if (inspectingPlayerId) {
+        redrawInspectModalCanvas(inspectingPlayerId, allStrokes);
+      }
+    }
+
+    function redrawInspectCanvas() {
+      if (!inspectingPlayerId || !currentRoomData) return;
+      redrawInspectModalCanvas(inspectingPlayerId, currentRoomData.strokes || {});
+    }
+
+    /* ========================================================
+       6. 繪圖與筆跡同步 (0~1000 正規化)
+       ======================================================== */
     function initCanvas() {
       canvas = document.getElementById('myCanvas');
       ctx = canvas.getContext('2d');
@@ -640,9 +915,11 @@
       ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
     }
 
-    function clearMyCanvas() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      if (db && !isDemoMode) {
+    function clearMyCanvas(removeFromDb = true) {
+      if (ctx && canvas) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+      if (removeFromDb && db && !isDemoMode) {
         db.ref(`rooms/${currentRoomCode}/strokes/${myPlayerId}`).remove();
       }
     }
@@ -696,14 +973,14 @@
           if (!batch.pts) return;
 
           batch.pts.forEach(pt => {
-            const realX = (pt.x / 1000) * oppCanvas.width;
-            const realY = (pt.y / 1000) * oppCanvas.height;
+            const rx = (pt.x / 1000) * oppCanvas.width;
+            const ry = (pt.y / 1000) * oppCanvas.height;
 
             if (pt.isNew) {
               oCtx.beginPath();
-              oCtx.moveTo(realX, realY);
+              oCtx.moveTo(rx, ry);
             } else {
-              oCtx.lineTo(realX, realY);
+              oCtx.lineTo(rx, ry);
               oCtx.stroke();
             }
           });
@@ -711,116 +988,195 @@
       });
     }
 
+    /* ========================================================
+       7. 猜題、宣告完成與回合結算
+       ======================================================== */
     function handleFinishDrawing() {
       const btn = document.getElementById('btn-finish-drawing');
       btn.disabled = true;
-      btn.className = "px-4 py-2 bg-slate-200 text-slate-400 rounded-xl font-bold text-xs cursor-not-allowed flex items-center space-x-1.5";
-      btn.innerHTML = `<i class="fa-solid fa-check"></i><span>已完成繪畫！</span>`;
+      btn.className = "px-3 py-2 bg-slate-200 text-slate-400 rounded-xl font-bold text-xs cursor-not-allowed flex items-center space-x-1";
+      btn.innerHTML = `<i class="fa-solid fa-check"></i><span>已完成</span>`;
 
       if (db && !isDemoMode) {
-        db.ref(`rooms/${currentRoomCode}/players/${myPlayerId}`).update({
-          isFinishedDrawing: true,
-          finishTime: firebase.database.ServerValue.TIMESTAMP
+        // 原子增加完成順序
+        const roomRef = db.ref('rooms/' + currentRoomCode);
+        roomRef.child('finishCounter').transaction(count => (count || 0) + 1, (err, committed, snap) => {
+          if (committed) {
+            const rank = snap.val();
+            roomRef.child(`players/${myPlayerId}`).update({
+              isFinishedDrawing: true,
+              finishRank: rank
+            });
+            checkRoundAutoEnd();
+          }
         });
       }
     }
 
-    function openGuessModal(targetPId, targetName) {
-      guessTargetPlayerId = targetPId;
-      document.getElementById('modal-target-name').innerText = targetName;
-      
-      const grid = document.getElementById('modal-options-grid');
-      grid.innerHTML = '';
-
-      currentTheme.words.forEach((w, idx) => {
-        const btn = document.createElement('button');
-        btn.className = "py-2 px-3 text-left bg-slate-50 hover:bg-indigo-50 border border-slate-200 hover:border-indigo-300 rounded-xl font-bold flex justify-between items-center transition";
-        btn.innerHTML = `<span>#${idx+1} ${w}</span><i class="fa-solid fa-chevron-right text-slate-300 text-xs"></i>`;
-        btn.onclick = () => submitGuess(targetPId, idx);
-        grid.appendChild(btn);
-      });
-
-      document.getElementById('modal-guess').classList.remove('hidden');
-    }
-
-    function closeGuessModal() {
-      document.getElementById('modal-guess').classList.add('hidden');
-    }
-
-    function submitGuess(targetPId, guessedWordIndex) {
-      closeGuessModal();
-
-      const guessBtn = document.getElementById(`btn-guess-${targetPId}`);
-      if (guessBtn) {
-        guessBtn.disabled = true;
-        guessBtn.className = "w-full py-1.5 bg-slate-100 text-slate-400 rounded-lg font-bold text-xs cursor-not-allowed";
-        guessBtn.innerText = `已對其進行猜測`;
-      }
+    function submitGuess(targetPId, guessedIndex) {
+      closeInspectModal();
 
       if (db && !isDemoMode) {
         db.ref(`rooms/${currentRoomCode}/guesses/${myPlayerId}_to_${targetPId}`).set({
           from: myPlayerId,
           to: targetPId,
-          guessedIndex: guessedWordIndex,
+          guessedIndex: guessedIndex,
           timestamp: firebase.database.ServerValue.TIMESTAMP
         });
-
-        if (isHost) {
-          checkGameCompletion();
-        }
+        checkRoundAutoEnd();
       }
     }
 
-    function checkGameCompletion() {
+    function checkRoundAutoEnd() {
+      if (!isHost || !db) return;
+      // 30秒後自動結算本回合
       setTimeout(() => {
-        calculateAndFinishGame();
-      }, 30000);
+        calculateRound();
+      }, 35000);
     }
 
-    function calculateAndFinishGame() {
+    // 計算本回合得分
+    function calculateRound() {
       if (!isHost || !db) return;
 
       db.ref('rooms/' + currentRoomCode).once('value', snap => {
         const room = snap.val();
+        if (room.status !== 'playing') return;
+
         const guesses = room.guesses || {};
         const assignments = room.assignments || {};
         const players = room.players || {};
 
+        const roundScores = {};
+        const wrongGuessCount = {};
+        const gotGuessedCorrectly = {};
+
+        Object.keys(players).forEach(pId => {
+          roundScores[pId] = 0;
+          wrongGuessCount[pId] = 0;
+          gotGuessedCorrectly[pId] = false;
+        });
+
+        // 結算猜題分
         Object.keys(guesses).forEach(k => {
           const g = guesses[k];
           const targetRealIndex = assignments[g.to].wordIndex;
           if (g.guessedIndex === targetRealIndex) {
-            players[g.from].score = (players[g.from].score || 0) + 3;
+            roundScores[g.from] += 3; // 猜對 +3
+            gotGuessedCorrectly[g.to] = true;
           } else {
-            players[g.from].score = (players[g.from].score || 0) - 1;
+            roundScores[g.from] -= 1; // 猜錯 -1
+            wrongGuessCount[g.from] += 1;
           }
         });
 
+        // 結算畫家分與速度分
+        Object.keys(players).forEach(pId => {
+          // 畫家獎勵分：有人猜對自己的畫 +2
+          if (gotGuessedCorrectly[pId]) {
+            roundScores[pId] += 2;
+          }
+
+          // 速度獎勵分：若無猜錯，依完成名次加分 (第1名+3, 第2名+2, 第3名+1)
+          const p = players[pId];
+          if (p.isFinishedDrawing && wrongGuessCount[pId] === 0) {
+            if (p.finishRank === 1) roundScores[pId] += 3;
+            else if (p.finishRank === 2) roundScores[pId] += 2;
+            else if (p.finishRank === 3) roundScores[pId] += 1;
+          }
+
+          // 累加總分
+          players[pId].roundScore = roundScores[pId];
+          players[pId].totalScore = (players[pId].totalScore || 0) + roundScores[pId];
+        });
+
         db.ref('rooms/' + currentRoomCode).update({
-          status: 'finished',
+          status: 'round_finished',
           players: players
         });
       });
     }
 
-    function showResults(players) {
+    function showRoundResults(roomData) {
       document.getElementById('view-game').classList.add('hidden');
-      document.getElementById('view-result').classList.remove('hidden');
+      document.getElementById('view-round-result').classList.remove('hidden');
 
-      const listEl = document.getElementById('scoreboard-list');
+      const rIdx = roomData.currentRound || 0;
+      document.getElementById('round-result-title').innerText = `第 ${rIdx + 1} / 5 回合結算`;
+
+      const listEl = document.getElementById('round-scoreboard-list');
       listEl.innerHTML = '';
 
-      const sorted = Object.values(players).sort((a, b) => (b.score || 0) - (a.score || 0));
+      const players = roomData.players || {};
+      const sorted = Object.values(players).sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
 
       sorted.forEach((p, idx) => {
         const item = document.createElement('div');
-        item.className = `flex justify-between items-center p-3 rounded-xl border ${idx === 0 ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200'}`;
+        item.className = "flex justify-between items-center p-2 rounded-xl border bg-slate-50 border-slate-200";
         item.innerHTML = `
           <div class="flex items-center space-x-2">
-            <span class="font-black text-sm ${idx === 0 ? 'text-amber-500' : 'text-slate-400'}">#${idx+1}</span>
+            <span class="font-bold text-slate-400">#${idx+1}</span>
             <span class="font-bold text-slate-700">${p.name} ${p.id === myPlayerId ? '(我)' : ''}</span>
           </div>
-          <span class="font-black text-base ${idx === 0 ? 'text-amber-600' : 'text-indigo-600'}">${p.score || 0} 分</span>
+          <div class="text-right">
+            <span class="font-black text-indigo-600">${p.totalScore || 0} 總分</span>
+            <span class="text-[10px] text-slate-400 block">(本輪 ${p.roundScore >= 0 ? '+' : ''}${p.roundScore || 0})</span>
+          </div>
+        `;
+        listEl.appendChild(item);
+      });
+
+      // 房主控制按鈕判斷（是否已滿 5 回合）
+      const nextBtn = document.getElementById('btn-next-round');
+      if (rIdx >= 4) {
+        nextBtn.innerText = "查看 5 回合總冠軍！";
+      } else {
+        nextBtn.innerText = `進入第 ${rIdx + 2} 回合 (共5回合)`;
+      }
+
+      if (isHost) {
+        document.getElementById('host-next-round-btn-container').classList.remove('hidden');
+        document.getElementById('guest-next-round-msg').classList.add('hidden');
+      } else {
+        document.getElementById('host-next-round-btn-container').classList.add('hidden');
+        document.getElementById('guest-next-round-msg').classList.remove('hidden');
+      }
+    }
+
+    function handleNextRound() {
+      if (!isHost) return;
+      if (currentRoundIndex >= 4) {
+        // 5回合全部結束，進入大總結算
+        if (db && !isDemoMode) {
+          db.ref('rooms/' + currentRoomCode).update({ status: 'game_over' });
+        }
+      } else {
+        // 開始下一回合
+        startRound(currentRoundIndex + 1);
+      }
+    }
+
+    function showFinalResults(players) {
+      document.getElementById('view-round-result').classList.add('hidden');
+      document.getElementById('view-result').classList.remove('hidden');
+
+      const listEl = document.getElementById('final-scoreboard-list');
+      listEl.innerHTML = '';
+
+      const sorted = Object.values(players).sort((a, b) => (b.totalScore || 0) - (a.totalScore || 0));
+
+      sorted.forEach((p, idx) => {
+        const item = document.createElement('div');
+        item.className = `flex justify-between items-center p-3 rounded-xl border ${idx === 0 ? 'bg-amber-50 border-amber-300 shadow-md' : 'bg-slate-50 border-slate-200'}`;
+        item.innerHTML = `
+          <div class="flex items-center space-x-2">
+            <span class="font-black text-base ${idx === 0 ? 'text-amber-500' : 'text-slate-400'}">#${idx+1}</span>
+            <div>
+              <span class="font-bold text-slate-700">${p.name} ${p.id === myPlayerId ? '(我)' : ''}</span>
+              ${idx === 0 ? '<span class="text-[10px] bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded font-black ml-1">總冠軍 🏆</span>' : ''}
+            </div>
+          </div>
+          <span class="font-black text-lg ${idx === 0 ? 'text-amber-600' : 'text-indigo-600'}">${p.totalScore || 0} 分</span>
         `;
         listEl.appendChild(item);
       });
@@ -837,9 +1193,9 @@
       enterWaitingRoom("DEMO");
 
       localPlayers = {
-        [myPlayerId]: { id: myPlayerId, name: myNickname, score: 0, isHost: true },
-        'bot_1': { id: 'bot_1', name: '小明(機器人)', score: 0, isHost: false },
-        'bot_2': { id: 'bot_2', name: '小華(機器人)', score: 0, isHost: false }
+        [myPlayerId]: { id: myPlayerId, name: myNickname, totalScore: 0, roundScore: 0, isHost: true },
+        'bot_1': { id: 'bot_1', name: '小明(機器人)', totalScore: 0, roundScore: 0, isHost: false },
+        'bot_2': { id: 'bot_2', name: '小華(機器人)', totalScore: 0, roundScore: 0, isHost: false }
       };
       renderLobbyPlayers(localPlayers);
     }
