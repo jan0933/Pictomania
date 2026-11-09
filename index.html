@@ -384,6 +384,20 @@
   <!-- ================= 遊戲核心 JavaScript 邏輯 ================= -->
   <script>
     // ----------------------------------------------------
+    // 0. 內建預設 Firebase Config (已綁定使用者的 Firebase 專案)
+    // ----------------------------------------------------
+    const DEFAULT_FIREBASE_CONFIG = {
+      apiKey: "AIzaSyDWiomRZw-XAgzWwHwGY7GhmEzZWnxmP38",
+      authDomain: "pictomania-a72e3.firebaseapp.com",
+      databaseURL: "https://pictomania-a72e3-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "pictomania-a72e3",
+      storageBucket: "pictomania-a72e3.firebasestorage.app",
+      messagingSenderId: "657442694569",
+      appId: "1:657442694569:web:092a5a04d98e8e006c50b8",
+      measurementId: "G-DBDBCM86PF"
+    };
+
+    // ----------------------------------------------------
     // 1. 詞庫卡片設定 (經典妙筆神猜結構：7個同類型/易混淆詞)
     // ----------------------------------------------------
     const WORD_CARDS = [
@@ -441,7 +455,7 @@
     // 3. 初始化 & 本機儲存讀取
     // ----------------------------------------------------
     window.onload = function() {
-      // 讀取快取的暱稱與 Firebase 設定
+      // 讀取快取的暱稱
       const savedName = localStorage.getItem('pictomania_username');
       if (savedName) document.getElementById('input-username').value = savedName;
 
@@ -454,22 +468,38 @@
       }
 
       initCanvas();
-      setupFirebaseFromStorage();
+      setupFirebase();
     };
 
-    function setupFirebaseFromStorage() {
+    function setupFirebase() {
+      // 優先使用使用者手動儲存的 Config，若無則使用已內建的專屬 Config
+      let config = DEFAULT_FIREBASE_CONFIG;
       const storedConfig = localStorage.getItem('pictomania_firebase_config');
       if (storedConfig) {
         try {
-          const config = JSON.parse(storedConfig);
-          if (!firebase.apps.length) {
-            firebase.initializeApp(config);
-          }
-          db = firebase.database();
-          document.getElementById('top-status-text').innerText = "Firebase 即時同步已就緒";
+          config = JSON.parse(storedConfig);
         } catch(e) {
-          console.warn("Firebase 初始化異常:", e);
+          console.warn("本機設定解析失敗，使用內建專案設定");
         }
+      }
+
+      try {
+        if (!firebase.apps.length) {
+          firebase.initializeApp(config);
+        }
+        db = firebase.database();
+        document.getElementById('top-status-text').innerHTML = 
+          '<span class="inline-block w-2 h-2 rounded-full bg-emerald-400 mr-1 animate-pulse"></span>已連線至 Firebase (東南亞節點)';
+        
+        // 預填至設定彈窗以備查閱
+        const configArea = document.getElementById('firebase-config-input');
+        if (configArea) {
+          configArea.placeholder = JSON.stringify(config, null, 2);
+        }
+      } catch(e) {
+        console.error("Firebase 初始化失敗:", e);
+        document.getElementById('top-status-text').innerHTML = 
+          '<span class="inline-block w-2 h-2 rounded-full bg-rose-400 mr-1"></span>連線異常，可使用單機模擬模式';
       }
     }
 
